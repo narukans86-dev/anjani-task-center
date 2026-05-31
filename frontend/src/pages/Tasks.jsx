@@ -1,16 +1,28 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getTasks, getStaff, createTask, updateTask, updateTaskStatus, deleteTask } from '../services/api'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
+import { getRecurrenceLabel } from '../utils/recurrence'
+import { TASK_TEMPLATES, TEMPLATE_CATEGORIES } from '../data/taskTemplates'
 
 const DEPARTMENTS = [
   'Sales', 'Purchase', 'Stock Audit', 'RGHS', 'Customer Support',
-  'Delivery', 'Billing', 'Expiry Return', 'Admin', 'Cleaning',
+  'Delivery', 'Billing', 'Expiry Return', 'Admin', 'Cleaning / Store Maintenance',
 ]
 const PRIORITIES = ['low', 'medium', 'high', 'critical']
 const STATUSES = ['pending', 'in_progress', 'completed', 'delayed']
+const RECURRENCE_TYPES = ['none', 'daily', 'weekly', 'monthly', 'custom']
+const WEEKDAYS = [
+  { key: 'mon', label: 'Mon' },
+  { key: 'tue', label: 'Tue' },
+  { key: 'wed', label: 'Wed' },
+  { key: 'thu', label: 'Thu' },
+  { key: 'fri', label: 'Fri' },
+  { key: 'sat', label: 'Sat' },
+  { key: 'sun', label: 'Sun' },
+]
 
 const PRIORITY_CONFIG = {
   critical: { label: 'Critical', cls: 'bg-red-50 text-red-600 border border-red-200' },
@@ -29,6 +41,8 @@ const STATUS_CONFIG = {
 const DEFAULT_FORM = {
   title: '', description: '', category: '', priority: 'medium',
   status: 'pending', assigned_to: '', due_date: '', due_time: '',
+  is_recurring: false, recurrence_type: 'none', recurrence_days: [], recurrence_end_date: '',
+  template_id: '',
 }
 
 function statusLabel(s) {
@@ -62,6 +76,203 @@ function StatusIcon({ status }) {
 const inputCls =
   'w-full bg-white border border-[#D1DCF0] rounded-lg px-3 py-2 text-[#111827] text-sm placeholder-slate-400 focus:outline-none focus:border-[#0A3D91] focus:ring-2 focus:ring-[#0A3D91]/10'
 
+// ── Template Picker ──────────────────────────────────────────────────────────
+
+function TemplatePicker({ onSelect, selectedId }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return TASK_TEMPLATES.filter(
+      (t) => t.title.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)
+    )
+  }, [search])
+
+  const byCategory = useMemo(() => {
+    const map = {}
+    filtered.forEach((t) => {
+      if (!map[t.category]) map[t.category] = []
+      map[t.category].push(t)
+    })
+    return map
+  }, [filtered])
+
+  return (
+    <div className="relative" ref={ref}>
+      <div className="flex items-center gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#D1DCF0] text-slate-600 text-xs hover:border-[#0A3D91]/40 hover:text-[#0A3D91] transition-colors"
+        >
+          <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          Start from template
+        </button>
+        {selectedId && (
+          <button
+            type="button"
+            onClick={() => onSelect(null)}
+            className="text-slate-400 text-xs hover:text-red-500 transition-colors"
+          >
+            Clear template
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute left-0 top-full z-30 bg-white rounded-xl shadow-2xl border border-[#D1DCF0] w-full min-w-[340px] max-h-72 flex flex-col">
+          <div className="p-2 border-b border-[#F0F4FF]">
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search templates..."
+              className="w-full bg-slate-50 border border-[#D1DCF0] rounded-lg px-3 py-1.5 text-xs text-[#111827] placeholder-slate-400 focus:outline-none focus:border-[#0A3D91]"
+            />
+          </div>
+          <div className="overflow-y-auto flex-1 p-1">
+            {Object.keys(byCategory).length === 0 ? (
+              <p className="text-slate-400 text-xs text-center py-4">No templates found.</p>
+            ) : (
+              Object.entries(byCategory).map(([cat, items]) => (
+                <div key={cat} className="mb-1">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 py-1">{cat}</p>
+                  {items.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => { onSelect(tpl); setOpen(false); setSearch('') }}
+                      className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
+                        selectedId === tpl.id
+                          ? 'bg-blue-50 text-[#0A3D91] font-semibold'
+                          : 'text-[#111827] hover:bg-blue-50/60'
+                      }`}
+                    >
+                      {tpl.title}
+                    </button>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Recurrence Section ───────────────────────────────────────────────────────
+
+function RecurrenceSection({ form, setForm }) {
+  const toggleDay = (day) => {
+    setForm((p) => {
+      const days = p.recurrence_days.includes(day)
+        ? p.recurrence_days.filter((d) => d !== day)
+        : [...p.recurrence_days, day]
+      return { ...p, recurrence_days: days }
+    })
+  }
+
+  const showDays = form.recurrence_type === 'weekly' || form.recurrence_type === 'custom'
+
+  return (
+    <div className="border border-[#D1DCF0] rounded-xl p-3 space-y-3">
+      {/* Toggle */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-slate-700 text-xs font-semibold">Recurring Task</p>
+          <p className="text-slate-400 text-[10px]">Task repeats automatically on selected schedule</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setForm((p) => ({ ...p, is_recurring: !p.is_recurring, recurrence_type: p.is_recurring ? 'none' : 'daily' }))}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+            form.is_recurring ? 'bg-[#0A3D91]' : 'bg-slate-200'
+          }`}
+        >
+          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+            form.is_recurring ? 'translate-x-4' : 'translate-x-1'
+          }`} />
+        </button>
+      </div>
+
+      {form.is_recurring && (
+        <>
+          {/* Recurrence type */}
+          <div>
+            <label className="text-slate-600 text-[10px] font-medium block mb-1">Repeat</label>
+            <div className="flex gap-1.5 flex-wrap">
+              {RECURRENCE_TYPES.filter((t) => t !== 'none').map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, recurrence_type: type }))}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold border transition-colors capitalize ${
+                    form.recurrence_type === type
+                      ? 'bg-[#0A3D91] text-white border-[#0A3D91]'
+                      : 'bg-white text-slate-600 border-[#D1DCF0] hover:border-[#0A3D91]/40'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Day checkboxes */}
+          {showDays && (
+            <div>
+              <label className="text-slate-600 text-[10px] font-medium block mb-1">Days</label>
+              <div className="flex gap-1.5 flex-wrap">
+                {WEEKDAYS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggleDay(key)}
+                    className={`w-9 py-1 rounded-lg text-[10px] font-semibold border transition-colors ${
+                      form.recurrence_days.includes(key)
+                        ? 'bg-[#0A3D91] text-white border-[#0A3D91]'
+                        : 'bg-white text-slate-500 border-[#D1DCF0] hover:border-[#0A3D91]/40'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* End date */}
+          <div>
+            <label className="text-slate-600 text-[10px] font-medium block mb-1">End Date (optional)</label>
+            <input
+              type="date"
+              value={form.recurrence_end_date}
+              onChange={(e) => setForm((p) => ({ ...p, recurrence_end_date: e.target.value }))}
+              className={inputCls}
+            />
+            <p className="text-slate-400 text-[10px] mt-1">Task will auto-appear on selected days</p>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── Task Modal ───────────────────────────────────────────────────────────────
+
 function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList }) {
   const handle = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }))
 
@@ -70,6 +281,21 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  function applyTemplate(tpl) {
+    if (!tpl) {
+      setForm((p) => ({ ...p, title: '', description: '', category: '', priority: 'medium', template_id: '' }))
+      return
+    }
+    setForm((p) => ({
+      ...p,
+      title: tpl.title,
+      description: tpl.description,
+      category: tpl.category,
+      priority: tpl.priority,
+      template_id: tpl.id,
+    }))
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -85,6 +311,9 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
         </div>
 
         <div className="space-y-4">
+          {/* Template picker */}
+          <TemplatePicker onSelect={applyTemplate} selectedId={form.template_id} />
+
           <div>
             <label className="text-slate-600 text-xs font-medium block mb-1.5">Title *</label>
             <input value={form.title} onChange={handle('title')} placeholder="Task title" className={inputCls} />
@@ -133,7 +362,9 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-slate-600 text-xs font-medium block mb-1.5">Due Date</label>
+              <label className="text-slate-600 text-xs font-medium block mb-1.5">
+                {form.is_recurring ? 'Start Date' : 'Due Date'}
+              </label>
               <input type="date" value={form.due_date} onChange={handle('due_date')} className={inputCls} />
             </div>
             <div>
@@ -141,6 +372,9 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
               <input type="time" value={form.due_time} onChange={handle('due_time')} className={inputCls} />
             </div>
           </div>
+
+          {/* Recurrence */}
+          <RecurrenceSection form={form} setForm={setForm} />
         </div>
 
         <div className="flex gap-3 mt-6">
@@ -162,6 +396,8 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
     </div>
   )
 }
+
+// ── Delete Confirm ───────────────────────────────────────────────────────────
 
 function DeleteConfirm({ task, onConfirm, onCancel, saving }) {
   useEffect(() => {
@@ -198,6 +434,24 @@ function DeleteConfirm({ task, onConfirm, onCancel, saving }) {
   )
 }
 
+// ── Recurrence Badge ─────────────────────────────────────────────────────────
+
+function RecurrenceBadge({ task }) {
+  if (!task.is_recurring) return null
+  const label = getRecurrenceLabel(task)
+  if (!label) return null
+  return (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
+      <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      {label}
+    </span>
+  )
+}
+
+// ── Status Dropdown ──────────────────────────────────────────────────────────
+
 const STAFF_STATUSES = ['in_progress', 'completed']
 
 function StatusDropdown({ task, onSelect, isStaff }) {
@@ -220,6 +474,8 @@ function StatusDropdown({ task, onSelect, isStaff }) {
     </div>
   )
 }
+
+// ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Tasks() {
   const [searchParams] = useSearchParams()
@@ -301,6 +557,8 @@ export default function Tasks() {
 
   function openEdit(t) {
     setEditTarget(t)
+    let days = []
+    try { days = t.recurrence_days ? JSON.parse(t.recurrence_days) : [] } catch { days = [] }
     setForm({
       title: t.title,
       description: t.description || '',
@@ -310,6 +568,11 @@ export default function Tasks() {
       assigned_to: t.assigned_to != null ? String(t.assigned_to) : '',
       due_date: t.due_date || '',
       due_time: t.due_time || '',
+      is_recurring: !!t.is_recurring,
+      recurrence_type: t.recurrence_type || 'none',
+      recurrence_days: days,
+      recurrence_end_date: t.recurrence_end_date || '',
+      template_id: t.template_id || '',
     })
   }
 
@@ -319,6 +582,11 @@ export default function Tasks() {
       const payload = {
         ...form,
         assigned_to: form.assigned_to !== '' ? Number(form.assigned_to) : null,
+        is_recurring: form.is_recurring ? 1 : 0,
+        recurrence_days: form.recurrence_days.length ? JSON.stringify(form.recurrence_days) : null,
+        recurrence_type: form.is_recurring ? form.recurrence_type : 'none',
+        recurrence_end_date: form.recurrence_end_date || null,
+        template_id: form.template_id || null,
       }
       if (editTarget) {
         await updateTask(editTarget.id, payload)
@@ -451,6 +719,7 @@ export default function Tasks() {
 
       {!loading && !error && (
         <>
+          {/* Desktop table */}
           <div className="hidden md:block bg-white rounded-2xl overflow-hidden border border-[#D1DCF0] shadow-sm">
             <table className="w-full text-sm">
               <thead>
@@ -479,11 +748,12 @@ export default function Tasks() {
                     const st = STATUS_CONFIG[t.status] || STATUS_CONFIG.pending
                     return (
                       <tr key={t.id} className="hover:bg-blue-50/40 transition-colors">
-                        <td className="px-4 py-3.5 max-w-[220px]">
+                        <td className="px-4 py-3.5 max-w-[240px]">
                           <p className="text-[#111827] font-medium truncate">{t.title}</p>
                           {t.description && (
                             <p className="text-slate-400 text-xs truncate mt-0.5">{t.description}</p>
                           )}
+                          <RecurrenceBadge task={t} />
                         </td>
                         <td className="px-4 py-3.5">
                           {t.category && (
@@ -562,6 +832,7 @@ export default function Tasks() {
             </table>
           </div>
 
+          {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {filtered.length === 0 ? (
               <div className="text-center py-14 text-slate-400 text-sm">
@@ -596,6 +867,7 @@ export default function Tasks() {
                         <StatusIcon status={t.status} />
                         {st.label}
                       </span>
+                      <RecurrenceBadge task={t} />
                     </div>
 
                     <div className="flex items-center justify-between text-xs mb-3">

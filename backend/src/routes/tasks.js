@@ -25,13 +25,43 @@ router.get('/', (req, res) => {
   res.json(db.prepare(sql).all(...params))
 })
 
-// GET /api/tasks/today — tasks where due_date = today
+// GET /api/tasks/today — tasks due today (including recurring)
 router.get('/today', (_req, res) => {
   const today = new Date().toISOString().slice(0, 10)
-  const rows = db.prepare(
-    "SELECT * FROM tasks WHERE due_date = ? ORDER BY CASE priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END"
-  ).all(today)
-  res.json(rows)
+  const d = new Date(today + 'T00:00:00')
+  const weekday = ['sun','mon','tue','wed','thu','fri','sat'][d.getDay()]
+  const dayOfMonth = d.getDate()
+
+  const all = db.prepare('SELECT * FROM tasks WHERE status NOT IN (\'cancelled\')').all()
+
+  const due = all.filter((t) => {
+    if (!t.is_recurring) return t.due_date === today
+
+    const type = t.recurrence_type || 'none'
+    if (type === 'none') return t.due_date === today
+    if (t.recurrence_end_date && today > t.recurrence_end_date) return false
+    if (t.due_date && today < t.due_date) return false
+
+    if (type === 'daily') return true
+
+    if (type === 'weekly' || type === 'custom') {
+      let days = []
+      try { days = t.recurrence_days ? JSON.parse(t.recurrence_days) : [] } catch { days = [] }
+      return days.includes(weekday)
+    }
+
+    if (type === 'monthly') {
+      if (!t.due_date) return false
+      return parseInt(t.due_date.slice(8, 10), 10) === dayOfMonth
+    }
+
+    return false
+  })
+
+  const priority_order = { critical: 1, urgent: 2, high: 3, medium: 4, low: 5 }
+  due.sort((a, b) => (priority_order[a.priority] || 9) - (priority_order[b.priority] || 9))
+
+  res.json(due)
 })
 
 // GET /api/tasks/stats — counts: total, completed, pending, delayed, by_category, by_staff
