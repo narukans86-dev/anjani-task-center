@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getTasks, getStaff, updateTaskStatus } from '../services/api'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
+import { useAuth } from '../context/AuthContext'
 
 const PRIORITY_DOT = {
   critical: '#ef4444',
@@ -36,7 +37,7 @@ function initials(name) {
   return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
-function TaskListItem({ task, staffList, onComplete, completing }) {
+function TaskListItem({ task, staffList, onComplete, completing, canComplete }) {
   const st = STATUS_CFG[task.status] || STATUS_CFG.pending
   const assignee = staffList.find((s) => String(s.id) === String(task.assigned_to))
   const borderColor = PRIORITY_BORDER[task.priority] || PRIORITY_BORDER.low
@@ -77,7 +78,7 @@ function TaskListItem({ task, staffList, onComplete, completing }) {
             <p className="text-slate-500 text-[10px] mt-0.5">{task.due_time}</p>
           )}
         </div>
-        {task.status !== 'completed' && (
+        {canComplete && task.status !== 'completed' && (
           <button
             onClick={() => onComplete(task.id)}
             disabled={completing === task.id}
@@ -99,6 +100,7 @@ function TaskListItem({ task, staffList, onComplete, completing }) {
 
 export default function Calendar() {
   const { toasts, add: toast, remove: removeToast } = useToast()
+  const { user } = useAuth()
 
   const today = todayStr()
   const [curDate, setCurDate] = useState(() => {
@@ -127,6 +129,8 @@ export default function Calendar() {
   useEffect(() => { load() }, [load])
 
   async function quickComplete(taskId) {
+    if (user?.role === 'viewer') return
+
     setCompleting(taskId)
     try {
       await updateTaskStatus(taskId, 'completed')
@@ -143,12 +147,26 @@ export default function Calendar() {
   const firstDay  = new Date(year, month, 1).getDay()
   const daysInMon = new Date(year, month + 1, 0).getDate()
 
-  const tasksByDate = useMemo(() => allTasks.reduce((acc, t) => {
+  const myStaffId = useMemo(() => {
+    if (user?.role !== 'staff') return null
+    const match = staffList.find((s) => s.name === user.name)
+    return match ? match.id : null
+  }, [user, staffList])
+
+  const visibleTasks = useMemo(() => {
+    if (user?.role !== 'staff') return allTasks
+    if (myStaffId === null) return []
+    return allTasks.filter((t) => String(t.assigned_to) === String(myStaffId))
+  }, [user, allTasks, myStaffId])
+
+  const canCompleteTasks = user?.role !== 'viewer'
+
+  const tasksByDate = useMemo(() => visibleTasks.reduce((acc, t) => {
     if (t.due_date) {
       acc[t.due_date] = acc[t.due_date] ? [...acc[t.due_date], t] : [t]
     }
     return acc
-  }, {}), [allTasks])
+  }, {}), [visibleTasks])
 
   const selectedTasks = tasksByDate[selectedDate] ?? []
 
@@ -315,6 +333,7 @@ export default function Calendar() {
                   staffList={staffList}
                   onComplete={quickComplete}
                   completing={completing}
+                  canComplete={canCompleteTasks}
                 />
               ))
             }

@@ -207,7 +207,7 @@ function TaskBadge({ children, className = '' }) {
   )
 }
 
-function TaskListItem({ task, staffList, onComplete, completing, compact = false }) {
+function TaskListItem({ task, staffList, onComplete, completing, compact = false, canComplete = true }) {
   const st = STATUS_CFG[task.status] || STATUS_CFG.pending
   const assignee = staffList.find((s) => String(s.id) === String(task.assigned_to))
   const priority = PRIORITY_META[task.priority] || PRIORITY_META.low
@@ -233,7 +233,7 @@ function TaskListItem({ task, staffList, onComplete, completing, compact = false
           )}
         </div>
       </div>
-      {task.status !== 'completed' && (
+      {canComplete && task.status !== 'completed' && (
         <button
           onClick={() => onComplete(task.id)}
           disabled={completing === task.id}
@@ -440,7 +440,7 @@ function CalendarCard({ loading, year, month, today, tasksByDate, upcomingTasks,
   )
 }
 
-function PriorityColumn({ title, subtitle, icon, tone, tasks, staffList, onComplete, completing, loading }) {
+function PriorityColumn({ title, subtitle, icon, tone, tasks, staffList, onComplete, completing, loading, canComplete }) {
   const toneClasses = {
     red: 'bg-red-50 text-red-600 border-red-100',
     amber: 'bg-amber-50 text-amber-700 border-amber-100',
@@ -475,6 +475,7 @@ function PriorityColumn({ title, subtitle, icon, tone, tasks, staffList, onCompl
                 onComplete={onComplete}
                 completing={completing}
                 compact
+                canComplete={canComplete}
               />
             ))}
       </div>
@@ -529,6 +530,8 @@ export default function Dashboard() {
   }, [load])
 
   async function quickComplete(taskId) {
+    if (user?.role === 'viewer') return
+
     setCompleting(taskId)
     try {
       await updateTaskStatus(taskId, 'completed')
@@ -543,6 +546,7 @@ export default function Dashboard() {
 
   const today = dateKey()
   const todayDisplay = toDateLabel(today, { weekday: 'long', year: 'numeric' })
+  const canCompleteTasks = user?.role !== 'viewer'
 
   const myStaffId = useMemo(() => {
     if (user?.role !== 'staff') return null
@@ -685,6 +689,7 @@ export default function Dashboard() {
                     staffList={staffList}
                     onComplete={quickComplete}
                     completing={completing}
+                    canComplete={canCompleteTasks}
                   />
                 ))}
           </div>
@@ -708,6 +713,7 @@ export default function Dashboard() {
           onComplete={quickComplete}
           completing={completing}
           loading={loading}
+          canComplete={canCompleteTasks}
         />
         <PriorityColumn
           title="Pending"
@@ -719,6 +725,7 @@ export default function Dashboard() {
           onComplete={quickComplete}
           completing={completing}
           loading={loading}
+          canComplete={canCompleteTasks}
         />
         <PriorityColumn
           title="Completed"
@@ -730,6 +737,7 @@ export default function Dashboard() {
           onComplete={quickComplete}
           completing={completing}
           loading={loading}
+          canComplete={canCompleteTasks}
         />
       </div>
 
