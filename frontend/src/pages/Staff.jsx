@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getStaff, createStaff, updateStaff, deleteStaff, getTasks } from '../services/api'
+import { getStaff, createStaff, updateStaff, deleteStaff, getTasks, createAuditLog } from '../services/api'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
@@ -292,10 +292,12 @@ export default function Staff() {
         await updateStaff(editTarget.id, form)
         setEditTarget(null)
         toast('Staff member updated', 'success')
+        createAuditLog({ action: 'staff_edited', entity_type: 'staff', entity_id: editTarget.id, user_name: user?.name, details: `Staff '${form.name}' updated` }).catch(() => {})
       } else {
-        await createStaff(form)
+        const created = await createStaff(form)
         setShowAdd(false)
         toast('Staff member added', 'success')
+        createAuditLog({ action: 'staff_added', entity_type: 'staff', entity_id: created?.id ?? null, user_name: user?.name, details: `Staff '${form.name}' added as ${form.role}` }).catch(() => {})
       }
       await load()
     } catch (e) {
@@ -311,6 +313,7 @@ export default function Staff() {
       const newStatus = s.status === 'active' ? 'inactive' : 'active'
       await updateStaff(s.id, { status: newStatus })
       toast(`${s.name} set to ${newStatus}`, 'success')
+      createAuditLog({ action: `staff_${newStatus}`, entity_type: 'staff', entity_id: s.id, user_name: user?.name, details: `'${s.name}' set to ${newStatus}` }).catch(() => {})
       await load()
     } catch (e) {
       toast(`Error: ${e.message}`, 'error')
@@ -326,6 +329,7 @@ export default function Staff() {
       await updateStaff(deactivateTarget.id, { status: 'inactive' })
       setDeactivateTarget(null)
       toast('Staff member deactivated', 'success')
+      createAuditLog({ action: 'staff_deactivated', entity_type: 'staff', entity_id: deactivateTarget.id, user_name: user?.name, details: `'${deactivateTarget.name}' set to inactive` }).catch(() => {})
       await load()
     } catch (e) {
       toast(`Error: ${e.message}`, 'error')

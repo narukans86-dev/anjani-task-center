@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { createAuditLog } from '../../services/api'
 
 const NAV = [
   {
@@ -62,6 +63,15 @@ const NAV = [
     ),
   },
   {
+    to: '/audit',
+    label: 'Audit Log',
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+    ),
+  },
+  {
     to: '/settings',
     label: 'Settings',
     icon: (
@@ -84,6 +94,7 @@ export default function Sidebar({ open, onClose }) {
 
   const visibleNav = NAV.filter(({ to, label }) => {
     if (label === 'Settings' && !hasPermission('access_settings')) return false
+    if (label === 'Audit Log' && user?.role !== 'admin') return false
     if (label === 'Reports' && user?.role === 'staff') return false
     if (label === 'Staff' && user?.role === 'staff') return false
     return true
@@ -169,7 +180,10 @@ export default function Sidebar({ open, onClose }) {
                 <p className="text-slate-400 text-[10px] truncate">{ROLE_LABEL[user.role] ?? user.role}</p>
               </div>
               <button
-                onClick={logout}
+                onClick={() => {
+                createAuditLog({ action: 'logout', entity_type: 'auth', entity_id: null, user_name: user?.name, details: `User '${user?.name}' logged out` }).catch(() => {})
+                logout()
+              }}
                 title="Sign out"
                 className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
               >

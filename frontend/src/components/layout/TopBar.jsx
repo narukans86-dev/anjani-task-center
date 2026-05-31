@@ -12,6 +12,7 @@ const PAGE_TITLES = {
   '/calendar':  'Calendar',
   '/reports':   'Reports',
   '/settings':  'Settings',
+  '/audit':     'Audit Log',
 }
 
 const ROLE_BADGE = {

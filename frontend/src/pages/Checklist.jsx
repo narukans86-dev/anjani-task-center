@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { getTodayChecklists, completeChecklistItem, uncompleteChecklistItem, getStaff } from '../services/api'
+import { getTodayChecklists, completeChecklistItem, uncompleteChecklistItem, getStaff, createAuditLog } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
@@ -155,6 +155,8 @@ export default function Checklist() {
     setCompleting(checklistId)
     try {
       await completeChecklistItem(checklistId, myStaffId, null)
+      const item = items.find((i) => i.id === checklistId)
+      createAuditLog({ action: 'checklist_completed', entity_type: 'checklist', entity_id: checklistId, user_name: user?.name, details: `'${item?.title ?? checklistId}' marked complete` }).catch(() => {})
       await load()
       toast('Item marked complete', 'success')
     } catch (e) {
@@ -168,6 +170,8 @@ export default function Checklist() {
     setCompleting(completionId)
     try {
       await uncompleteChecklistItem(completionId)
+      const item = items.find((i) => i.completion_id === completionId)
+      createAuditLog({ action: 'checklist_unmarked', entity_type: 'checklist', entity_id: item?.id ?? null, user_name: user?.name, details: `'${item?.title ?? completionId}' unmarked` }).catch(() => {})
       await load()
       toast('Item unmarked', 'success')
     } catch (e) {

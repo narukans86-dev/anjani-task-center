@@ -63,3 +63,9 @@
     to   { opacity: 1; transform: translateX(0); }
   }
 }
+
+@media print {
+  aside, header { display: none !important; }
+  main { overflow: visible !important; }
+  .print\:hidden { display: none !important; }
+}

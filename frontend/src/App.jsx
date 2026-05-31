@@ -11,6 +11,7 @@ import Calendar from './pages/Calendar'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
+import AuditLog from './pages/AuditLog'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="tasks"     element={<Tasks />} />
             <Route path="checklist" element={<Checklist />} />
+            <Route path="audit"     element={<AuditLog />} />
             <Route path="staff"     element={<Staff />} />
             <Route path="calendar"  element={<Calendar />} />
             <Route path="reports"   element={<Reports />} />

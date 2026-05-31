@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getTasks, getStaff, createTask, updateTask, updateTaskStatus, deleteTask } from '../services/api'
+import { getTasks, getStaff, createTask, updateTask, updateTaskStatus, deleteTask, createAuditLog } from '../services/api'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
@@ -592,10 +592,12 @@ export default function Tasks() {
         await updateTask(editTarget.id, payload)
         setEditTarget(null)
         toast('Task updated', 'success')
+        createAuditLog({ action: 'task_edited', entity_type: 'task', entity_id: editTarget.id, user_name: user?.name, details: `Task '${payload.title}' updated` }).catch(() => {})
       } else {
-        await createTask(payload)
+        const created = await createTask(payload)
         setShowAdd(false)
         toast('Task created', 'success')
+        createAuditLog({ action: 'task_added', entity_type: 'task', entity_id: created?.id ?? null, user_name: user?.name, details: `Task '${payload.title}' created` }).catch(() => {})
       }
       await load()
     } catch (e) {
@@ -609,6 +611,7 @@ export default function Tasks() {
     setSaving(true)
     try {
       await deleteTask(deleteTarget.id)
+      createAuditLog({ action: 'task_deleted', entity_type: 'task', entity_id: deleteTarget.id, user_name: user?.name, details: `Task '${deleteTarget.title}' deleted` }).catch(() => {})
       setDeleteTarget(null)
       toast('Task deleted', 'success')
       await load()
@@ -624,6 +627,8 @@ export default function Tasks() {
       await updateTaskStatus(taskId, status)
       setStatusMenu(null)
       toast('Status updated', 'success')
+      const t = tasks.find((x) => x.id === taskId)
+      createAuditLog({ action: 'task_status_changed', entity_type: 'task', entity_id: taskId, user_name: user?.name, details: `Task '${t?.title ?? taskId}' marked as ${status}` }).catch(() => {})
       await load()
     } catch (e) {
       toast(`Error: ${e.message}`, 'error')

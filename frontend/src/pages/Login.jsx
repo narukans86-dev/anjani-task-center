@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { createAuditLog } from '../services/api'
 
 export default function Login() {
   const { login, isAuthenticated } = useAuth()
@@ -23,6 +24,7 @@ export default function Login() {
     const result = await login(username.trim(), password)
     setLoading(false)
     if (result.success) {
+      createAuditLog({ action: 'login', entity_type: 'auth', entity_id: null, user_name: username.trim(), details: `User '${username.trim()}' logged in` }).catch(() => {})
       navigate('/dashboard', { replace: true })
     } else {
       setError(result.error)
