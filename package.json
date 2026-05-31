@@ -1,0 +1,15 @@
+{
+  "name": "anjani-task-center",
+  "version": "1.0.0",
+  "description": "Anjani Staff Task Command Center — Local Operations",
+  "scripts": {
+    "dev": "concurrently --names \"SERVER,CLIENT\" -c \"bgYellow.black,bgCyan.black\" \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
+    "client": "npm --prefix frontend run dev",
+    "server": "npm --prefix backend run dev",
+    "build": "npm --prefix frontend run build",
+    "install:all": "npm install && npm --prefix frontend install && npm --prefix backend install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
