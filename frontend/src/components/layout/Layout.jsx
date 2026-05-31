@@ -14,7 +14,7 @@ export default function Layout() {
       <div className="flex flex-col flex-1 min-w-0">
         <TopBar onMenuClick={() => setSidebarOpen(true)} />
 
-        <main className="flex-1 overflow-y-auto bg-grid-slate">
+        <main className="flex-1 overflow-y-auto bg-premium-soft">
           <Outlet />
         </main>
       </div>

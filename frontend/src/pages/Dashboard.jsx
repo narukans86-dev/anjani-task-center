@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { getTodayTasks, getTaskStats, getStaff, getTasks, updateTaskStatus, getChecklistStats } from '../services/api'
 import Toast from '../components/Toast'
+import BrandLogo from '../components/BrandLogo'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
 import { generateTaskNotifications } from '../utils/notificationGenerator'
@@ -43,6 +44,37 @@ const DEPT_COLORS = [
   '#ec4899','#10b981','#f97316','#6366f1','#06b6d4',
 ]
 
+const DAILY_QUOTES = [
+  {
+    quote: 'Every task completed on time protects a patient, supports a team, and grows Anjani Medical.',
+    author: 'Anjani Medical',
+  },
+  {
+    quote: 'Small tasks done well create big trust.',
+    author: 'Anjani Medical',
+  },
+  {
+    quote: 'Speed matters, but accuracy protects patients.',
+    author: 'Anjani Medical',
+  },
+  {
+    quote: "Today's follow-up is tomorrow's growth.",
+    author: 'Anjani Medical',
+  },
+  {
+    quote: 'Clean work, clear records, confident service.',
+    author: 'Anjani Medical',
+  },
+  {
+    quote: 'Every completed task reduces chaos for the whole team.',
+    author: 'Anjani Medical',
+  },
+  {
+    quote: 'Consistency beats pressure.',
+    author: 'Anjani Medical',
+  },
+]
+
 function pad(n) {
   return String(n).padStart(2, '0')
 }
@@ -69,6 +101,10 @@ function greeting() {
   if (h < 12) return 'morning'
   if (h < 17) return 'afternoon'
   return 'evening'
+}
+
+function getDailyQuote(date = new Date()) {
+  return DAILY_QUOTES[date.getDay() % DAILY_QUOTES.length]
 }
 
 function isOpenTask(task) {
@@ -126,6 +162,9 @@ function Icon({ name, className = 'w-5 h-5' }) {
   if (name === 'flame') return (
     <svg {...common}><path d="M8.5 14.5A4.5 4.5 0 0 0 17 12c0-4-4-6-4-9-2.5 1.6-4 4-4 6.5 0 1.5.5 2.5 1 3.5-1.2-.3-2.2-1-3-2C6.4 12.2 6 13.4 6 15a6 6 0 0 0 12 0c0-1.5-.4-2.8-1.2-4" /></svg>
   )
+  if (name === 'spark') return (
+    <svg {...common}><path d="M13 2 9.6 8.7 3 12l6.6 3.3L13 22l3.4-6.7L23 12l-6.6-3.3L13 2z" /><path d="m5 3 1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" /></svg>
+  )
   if (name === 'calendar') return (
     <svg {...common}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>
   )
@@ -145,7 +184,7 @@ function Icon({ name, className = 'w-5 h-5' }) {
 
 function Card({ children, className = '' }) {
   return (
-    <section className={`bg-white rounded-2xl border border-[#D1DCF0] shadow-sm ${className}`}>
+    <section className={`bg-white/95 rounded-2xl border border-[#D1DCF0] shadow-[0_14px_34px_rgba(10,61,145,0.07)] ${className}`}>
       {children}
     </section>
   )
@@ -184,6 +223,31 @@ function StatCard({ label, value, color, icon, loading }) {
             : <p className={`text-2xl font-bold tabular-nums ${palette.val}`}>{value}</p>
           }
           <p className="text-slate-500 text-xs font-medium leading-tight">{label}</p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function MorningBoostCard({ dailyQuote }) {
+  return (
+    <Card className="morning-boost-card p-4 sm:p-5">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+          <Icon name="spark" className="w-5 h-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-[#111827] font-semibold tracking-tight">Morning Boost</h3>
+            <span className="rounded-full bg-[#0A3D91]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#0A3D91]">
+              Daily Staff Quote
+            </span>
+          </div>
+          <p className="text-slate-500 text-xs mt-0.5">Start the day with focus, speed, and care.</p>
+          <blockquote className="mt-3 text-sm sm:text-base font-medium leading-relaxed text-[#111827]">
+            "{dailyQuote.quote}"
+          </blockquote>
+          <p className="mt-2 text-xs font-semibold text-[#0A3D91]">- {dailyQuote.author}</p>
         </div>
       </div>
     </Card>
@@ -546,6 +610,7 @@ export default function Dashboard() {
 
   const today = dateKey()
   const todayDisplay = toDateLabel(today, { weekday: 'long', year: 'numeric' })
+  const dailyQuote = getDailyQuote()
   const canCompleteTasks = user?.role !== 'viewer'
 
   const myStaffId = useMemo(() => {
@@ -623,8 +688,13 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 overflow-x-hidden">
-      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
-        <div className="min-w-0">
+      <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 rounded-2xl border border-[#D1DCF0] medical-cross-field medical-glow p-4 sm:p-5 shadow-[0_18px_42px_rgba(10,61,145,0.09)]">
+        <span className="dashboard-orb dashboard-orb-blue left-10 top-6" />
+        <span className="dashboard-orb dashboard-orb-teal right-24 bottom-4" />
+        <div className="relative z-10 min-w-0">
+          <div className="mb-3 inline-flex items-center rounded-xl bg-white px-3 py-2 border border-blue-100 shadow-sm">
+            <BrandLogo className="h-8 max-w-[190px]" fallbackClassName="text-sm" />
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-xl sm:text-2xl font-bold text-[#111827] tracking-tight">
               Good {greeting()}, {user?.name ?? 'there'}
@@ -635,7 +705,7 @@ export default function Dashboard() {
           </div>
           <p className="text-slate-500 text-sm mt-1">Anjani Medical operations view for {todayDisplay}.</p>
         </div>
-        <div className="flex items-center gap-2 rounded-2xl bg-white border border-[#D1DCF0] px-4 py-3 shadow-sm w-full sm:w-auto">
+        <div className="relative z-10 flex items-center gap-2 rounded-2xl bg-white/95 border border-[#D1DCF0] px-4 py-3 shadow-sm w-full sm:w-auto">
           <span className="text-[#0A3D91]"><Icon name="calendar" /></span>
           <div className="min-w-0">
             <p className="text-xs text-slate-500">Current month</p>
@@ -643,6 +713,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      <MorningBoostCard dailyQuote={dailyQuote} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <StatCard label="Total Tasks Today" value={todayTotal} color="blue" icon="clipboard" loading={loading} />

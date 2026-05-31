@@ -45,6 +45,139 @@
     background-size: 40px 40px;
   }
 
+  .bg-premium-soft,
+  .bg-premium-medical {
+    position: relative;
+    isolation: isolate;
+    overflow-x: hidden;
+    background-color: #F0F4FF;
+    background-image:
+      radial-gradient(circle at 16% 10%, rgba(10, 61, 145, 0.16), transparent 25rem),
+      radial-gradient(circle at 90% 12%, rgba(14, 165, 233, 0.14), transparent 24rem),
+      radial-gradient(circle at 74% 86%, rgba(16, 185, 129, 0.11), transparent 26rem),
+      linear-gradient(135deg, #EFF5FF 0%, #F8FBFF 48%, #EEF8F6 100%);
+  }
+
+  .bg-premium-soft::before,
+  .bg-premium-medical::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 8% 34%, rgba(255, 255, 255, 0.78), transparent 18rem),
+      radial-gradient(circle at 92% 44%, rgba(10, 61, 145, 0.08), transparent 16rem),
+      linear-gradient(118deg, transparent 0 52%, rgba(255, 255, 255, 0.54) 52% 55%, transparent 55% 100%);
+  }
+
+  .bg-premium-soft::after,
+  .bg-premium-medical::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.62;
+    background-image:
+      radial-gradient(circle, rgba(10, 61, 145, 0.10) 0 1px, transparent 1.5px),
+      radial-gradient(circle, rgba(14, 165, 233, 0.10) 0 1px, transparent 1.5px);
+    background-position: 12px 20px, 78px 96px;
+    background-size: 132px 132px, 176px 176px;
+  }
+
+  .bg-premium-soft > *,
+  .bg-premium-medical > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .bg-premium-login {
+    background-color: #F0F4FF;
+    background-image:
+      radial-gradient(circle at 18% 18%, rgba(10, 61, 145, 0.18), transparent 24rem),
+      radial-gradient(circle at 82% 14%, rgba(14, 165, 233, 0.16), transparent 22rem),
+      radial-gradient(circle at 62% 92%, rgba(16, 185, 129, 0.12), transparent 20rem),
+      linear-gradient(135deg, #EFF5FF 0%, #F8FBFF 48%, #EEF8F6 100%);
+  }
+
+  .medical-cross-field {
+    background:
+      radial-gradient(circle at 16% 12%, rgba(255, 255, 255, 0.88), transparent 11rem),
+      radial-gradient(circle at 88% 18%, rgba(14, 165, 233, 0.13), transparent 13rem),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(239, 247, 255, 0.84));
+  }
+
+  .medical-glow {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .medical-glow::before {
+    content: '';
+    position: absolute;
+    width: 16rem;
+    height: 16rem;
+    right: -5rem;
+    top: -7rem;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.24), transparent 68%);
+    pointer-events: none;
+  }
+
+  .medical-glow::after {
+    content: '+';
+    position: absolute;
+    right: 2rem;
+    bottom: 0.75rem;
+    color: rgba(10, 61, 145, 0.08);
+    font-size: 8rem;
+    line-height: 1;
+    font-weight: 800;
+    pointer-events: none;
+  }
+
+  .dashboard-orb {
+    position: absolute;
+    border-radius: 9999px;
+    pointer-events: none;
+    filter: blur(14px);
+    opacity: 0.5;
+  }
+
+  .dashboard-orb-blue {
+    width: 7rem;
+    height: 7rem;
+    background: rgba(10, 61, 145, 0.12);
+  }
+
+  .dashboard-orb-teal {
+    width: 5rem;
+    height: 5rem;
+    background: rgba(16, 185, 129, 0.14);
+  }
+
+  .morning-boost-card {
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 9% 18%, rgba(255, 255, 255, 0.86), transparent 12rem),
+      radial-gradient(circle at 94% 28%, rgba(14, 165, 233, 0.16), transparent 13rem),
+      linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(239, 247, 255, 0.88));
+  }
+
+  .morning-boost-card::after {
+    content: '';
+    position: absolute;
+    width: 9rem;
+    height: 9rem;
+    right: -3rem;
+    bottom: -4rem;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.16), transparent 68%);
+    pointer-events: none;
+  }
+
   .glow-teal {
     box-shadow: 0 0 20px rgba(14, 165, 233, 0.12), 0 0 40px rgba(14, 165, 233, 0.06);
   }

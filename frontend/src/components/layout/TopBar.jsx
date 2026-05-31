@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getNotifications, getUnreadCount } from '../../services/api'
 import NotificationPanel from '../NotificationPanel'
+import BrandLogo from '../BrandLogo'
 
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard',
@@ -74,8 +75,12 @@ export default function TopBar({ onMenuClick }) {
           </svg>
         </button>
 
+        <div className="lg:hidden shrink-0">
+          <BrandLogo className="h-7 max-w-[128px]" fallbackClassName="text-sm" />
+        </div>
+
         {/* Page title */}
-        <h1 className="text-[#111827] font-semibold text-base tracking-tight">{title}</h1>
+        <h1 className="hidden sm:block text-[#111827] font-semibold text-base tracking-tight">{title}</h1>
 
         {/* Right section */}
         <div className="ml-auto flex items-center gap-3">

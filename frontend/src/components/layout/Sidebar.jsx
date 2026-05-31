@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import BrandLogo from '../BrandLogo'
 import { createAuditLog } from '../../services/api'
 import { ROUTE_ROLES, hasRole } from '../../services/permissions'
 
@@ -123,16 +124,14 @@ export default function Sidebar({ open, onClose }) {
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-[#D1DCF0]">
-          <div className="w-9 h-9 rounded-lg bg-[#0A3D91] flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <p className="text-[#0A3D91] font-bold text-sm leading-tight truncate">ANJANI MEDICAL</p>
-            <p className="text-slate-400 text-xs leading-tight">Task Center</p>
+        {/* Brand */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-[#D1DCF0] bg-gradient-to-br from-white to-blue-50/70">
+          <div className="min-w-0 flex-1">
+            <BrandLogo className="h-8 max-w-[160px]" fallbackClassName="text-sm" />
+            <div className="mt-2">
+              <p className="text-[#0A3D91] font-bold text-sm leading-tight truncate">Anjani Medical</p>
+              <p className="text-slate-500 text-xs leading-tight">Task Center</p>
+            </div>
           </div>
           {/* Mobile close */}
           <button onClick={onClose} className="ml-auto lg:hidden text-slate-400 hover:text-slate-600 transition-colors">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { createAuditLog } from '../services/api'
+import BrandLogo from '../components/BrandLogo'
 
 export default function Login() {
   const { login, isAuthenticated } = useAuth()
@@ -32,25 +33,20 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F4FF] bg-grid-slate flex items-center justify-center p-4">
+    <div className="min-h-screen bg-premium-login flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Card */}
-        <div className="bg-white rounded-2xl p-8 shadow-xl border border-[#D1DCF0]">
+        <div className="bg-white/95 backdrop-blur rounded-2xl p-8 shadow-xl border border-[#D1DCF0]">
 
           {/* Brand */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-[#0A3D91] flex items-center justify-center mb-4">
-              <svg viewBox="0 0 24 24" className="w-7 h-7 text-white" fill="none" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
-              </svg>
+            <div className="mb-4 rounded-2xl bg-white px-5 py-3 shadow-sm border border-blue-100">
+              <BrandLogo className="h-14 max-w-[260px]" fallbackClassName="text-xl" />
             </div>
-            <p className="text-[#0A3D91] text-xs font-bold tracking-[0.2em] uppercase mb-1">
-              Anjani Medical
-            </p>
             <h1 className="text-[#111827] text-xl font-bold tracking-tight">
-              Staff Task Command Center
+              Daily Operations Command Center
             </h1>
-            <p className="text-slate-400 text-sm mt-1">Sign in to continue</p>
+            <p className="text-slate-500 text-sm mt-1">Sign in to continue</p>
           </div>
 
           {/* Form */}
