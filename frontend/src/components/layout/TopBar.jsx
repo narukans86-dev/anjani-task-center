@@ -19,6 +19,7 @@ const ROLE_BADGE = {
   admin:   { label: 'Admin',   cls: 'bg-[#0A3D91] text-white' },
   manager: { label: 'Manager', cls: 'bg-teal-600 text-white' },
   staff:   { label: 'Staff',   cls: 'bg-slate-500 text-white' },
+  viewer:  { label: 'Viewer',  cls: 'bg-slate-100 text-slate-600 border border-slate-200' },
 }
 
 export default function TopBar({ onMenuClick }) {

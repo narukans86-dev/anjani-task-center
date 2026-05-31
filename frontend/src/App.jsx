@@ -12,6 +12,15 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
 import AuditLog from './pages/AuditLog'
+import { ROUTE_ROLES } from './services/permissions'
+
+function protectedPage(routeKey, element) {
+  return (
+    <ProtectedRoute roles={ROUTE_ROLES[routeKey]}>
+      {element}
+    </ProtectedRoute>
+  )
+}
 
 export default function App() {
   return (
@@ -30,14 +39,14 @@ export default function App() {
             }
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="tasks"     element={<Tasks />} />
-            <Route path="checklist" element={<Checklist />} />
-            <Route path="audit"     element={<AuditLog />} />
-            <Route path="staff"     element={<Staff />} />
-            <Route path="calendar"  element={<Calendar />} />
-            <Route path="reports"   element={<Reports />} />
-            <Route path="settings"  element={<Settings />} />
+            <Route path="dashboard" element={protectedPage('dashboard', <Dashboard />)} />
+            <Route path="tasks"     element={protectedPage('tasks', <Tasks />)} />
+            <Route path="checklist" element={protectedPage('checklist', <Checklist />)} />
+            <Route path="audit"     element={protectedPage('audit', <AuditLog />)} />
+            <Route path="staff"     element={protectedPage('staff', <Staff />)} />
+            <Route path="calendar"  element={protectedPage('calendar', <Calendar />)} />
+            <Route path="reports"   element={protectedPage('reports', <Reports />)} />
+            <Route path="settings"  element={protectedPage('settings', <Settings />)} />
             <Route path="*"         element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>

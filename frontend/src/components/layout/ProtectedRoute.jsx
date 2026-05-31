@@ -2,8 +2,8 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import AccessDenied from '../../pages/AccessDenied'
 
-export default function ProtectedRoute({ children, permission }) {
-  const { isAuthenticated, hasPermission, loading } = useAuth()
+export default function ProtectedRoute({ children, permission, roles = [] }) {
+  const { isAuthenticated, hasPermission, loading, user } = useAuth()
 
   if (loading) {
     return (
@@ -14,6 +14,8 @@ export default function ProtectedRoute({ children, permission }) {
   }
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
+
+  if (roles.length > 0 && !roles.includes(user?.role)) return <AccessDenied />
 
   if (permission && !hasPermission(permission)) return <AccessDenied />
 

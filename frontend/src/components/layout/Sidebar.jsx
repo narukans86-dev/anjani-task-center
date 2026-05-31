@@ -1,10 +1,12 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { createAuditLog } from '../../services/api'
+import { ROUTE_ROLES, hasRole } from '../../services/permissions'
 
 const NAV = [
   {
     to: '/dashboard',
+    routeKey: 'dashboard',
     label: 'Dashboard',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -17,6 +19,7 @@ const NAV = [
   },
   {
     to: '/tasks',
+    routeKey: 'tasks',
     label: "Today's Tasks",
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -27,6 +30,7 @@ const NAV = [
   },
   {
     to: '/checklist',
+    routeKey: 'checklist',
     label: 'Checklist',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -36,6 +40,7 @@ const NAV = [
   },
   {
     to: '/staff',
+    routeKey: 'staff',
     label: 'Staff',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -45,6 +50,7 @@ const NAV = [
   },
   {
     to: '/calendar',
+    routeKey: 'calendar',
     label: 'Calendar',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -55,6 +61,7 @@ const NAV = [
   },
   {
     to: '/reports',
+    routeKey: 'reports',
     label: 'Reports',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -64,6 +71,7 @@ const NAV = [
   },
   {
     to: '/audit',
+    routeKey: 'audit',
     label: 'Audit Log',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -73,6 +81,7 @@ const NAV = [
   },
   {
     to: '/settings',
+    routeKey: 'settings',
     label: 'Settings',
     icon: (
       <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
@@ -83,22 +92,16 @@ const NAV = [
   },
 ]
 
-const ROLE_LABEL = { admin: 'Administrator', manager: 'Manager', staff: 'Staff' }
+const ROLE_LABEL = { admin: 'Administrator', manager: 'Manager', staff: 'Staff', viewer: 'Viewer' }
 
 function initials(name = '') {
   return name.trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
 export default function Sidebar({ open, onClose }) {
-  const { user, logout, hasPermission } = useAuth()
+  const { user, logout } = useAuth()
 
-  const visibleNav = NAV.filter(({ to, label }) => {
-    if (label === 'Settings' && !hasPermission('access_settings')) return false
-    if (label === 'Audit Log' && user?.role !== 'admin') return false
-    if (label === 'Reports' && user?.role === 'staff') return false
-    if (label === 'Staff' && user?.role === 'staff') return false
-    return true
-  })
+  const visibleNav = NAV.filter(({ routeKey }) => hasRole(user, ROUTE_ROLES[routeKey] ?? []))
 
   return (
     <>

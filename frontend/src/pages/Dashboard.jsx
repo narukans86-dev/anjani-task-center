@@ -28,6 +28,7 @@ const ROLE_BADGE = {
   admin:   { label: 'Admin',   cls: 'bg-[#0A3D91] text-white border-transparent' },
   manager: { label: 'Manager', cls: 'bg-teal-600 text-white border-transparent' },
   staff:   { label: 'Staff',   cls: 'bg-slate-500 text-white border-transparent' },
+  viewer:  { label: 'Viewer',  cls: 'bg-slate-100 text-slate-600 border-slate-200' },
 }
 
 const MONTHS = [
