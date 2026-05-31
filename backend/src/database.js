@@ -49,9 +49,63 @@ db.exec(`
     note      TEXT,
     timestamp TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS checklists (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    title       TEXT NOT NULL,
+    type        TEXT DEFAULT 'opening',
+    is_default  INTEGER DEFAULT 1,
+    order_index INTEGER DEFAULT 0,
+    active      INTEGER DEFAULT 1,
+    created_at  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS checklist_completions (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    checklist_id   INTEGER,
+    completed_by   INTEGER,
+    completed_date TEXT,
+    completed_at   TEXT DEFAULT (datetime('now')),
+    notes          TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS notifications (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    title            TEXT NOT NULL,
+    message          TEXT,
+    type             TEXT DEFAULT 'task',
+    priority         TEXT DEFAULT 'medium',
+    is_read          INTEGER DEFAULT 0,
+    related_task_id  INTEGER,
+    related_staff_id INTEGER,
+    created_at       TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    action      TEXT NOT NULL,
+    entity_type TEXT,
+    entity_id   INTEGER,
+    user_name   TEXT,
+    details     TEXT,
+    timestamp   TEXT DEFAULT (datetime('now'))
+  );
 `)
 
 // ── Migrations: add new columns if they don't exist ────────────────────────
+
+const taskCols = db.prepare("PRAGMA table_info(tasks)").all().map((c) => c.name)
+const addTaskCol = (col, def) => {
+  if (!taskCols.includes(col)) {
+    db.prepare(`ALTER TABLE tasks ADD COLUMN ${col} ${def}`).run()
+  }
+}
+addTaskCol('is_recurring',       'INTEGER DEFAULT 0')
+addTaskCol('recurrence_type',    "TEXT DEFAULT 'none'")
+addTaskCol('recurrence_days',    'TEXT')
+addTaskCol('recurrence_end_date','TEXT')
+addTaskCol('parent_task_id',     'INTEGER')
+addTaskCol('template_id',        'TEXT')
 
 const staffCols = db.prepare("PRAGMA table_info(staff)").all().map((c) => c.name)
 const addIfMissing = (col, def) => {
@@ -88,6 +142,49 @@ if (staffCount === 0) {
 
   seedAll(seedStaff)
   console.log('[DB] Seeded 6 staff members.')
+}
+
+// ── Seed default checklists ────────────────────────────────────────────────
+
+const checklistCount = db.prepare('SELECT COUNT(*) AS n FROM checklists').get().n
+
+if (checklistCount === 0) {
+  const insertCl = db.prepare(
+    'INSERT INTO checklists (title, type, order_index) VALUES (?, ?, ?)'
+  )
+
+  const openingItems = [
+    'Store opened on time',
+    'Computer/POS started and working',
+    'Internet connection verified',
+    'Cash counter checked and recorded',
+    'Refrigerator temperature checked',
+    'Near-expiry/short products reviewed',
+    'Pending online orders checked',
+    'RGHS pending prescriptions checked',
+    'Morning cleaning completed',
+    'Staff attendance confirmed',
+  ]
+
+  const closingItems = [
+    'Cash handover completed',
+    'POS day closing done',
+    'Pending customer orders noted',
+    'Refrigerator/insulin stock checked',
+    'Expiry/near-expiry issues noted',
+    'Evening cleaning completed',
+    'Important issues reported to manager',
+    'All systems shut down properly',
+    'Store locked and secured',
+  ]
+
+  const seedChecklists = db.transaction(() => {
+    openingItems.forEach((title, i) => insertCl.run(title, 'opening', i + 1))
+    closingItems.forEach((title, i) => insertCl.run(title, 'closing', i + 1))
+  })
+
+  seedChecklists()
+  console.log('[DB] Seeded default opening and closing checklists.')
 }
 
 module.exports = db

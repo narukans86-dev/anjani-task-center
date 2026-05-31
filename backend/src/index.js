@@ -6,8 +6,12 @@ const cors = require('cors')
 // Initialize DB (creates file + tables + seeds on first run)
 const db = require('./database')
 
-const staffRoutes = require('./routes/staff')
-const tasksRoutes = require('./routes/tasks')
+const staffRoutes        = require('./routes/staff')
+const tasksRoutes        = require('./routes/tasks')
+const checklistsRouter   = require('./routes/checklists')
+const notificationsRouter= require('./routes/notifications')
+const auditRouter        = require('./routes/audit')
+const reportsRouter      = require('./routes/reports')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -43,8 +47,12 @@ app.get('/api/health', (_req, res) => {
   })
 })
 
-app.use('/api/staff', staffRoutes)
-app.use('/api/tasks', tasksRoutes)
+app.use('/api/staff',         staffRoutes)
+app.use('/api/tasks',         tasksRoutes)
+app.use('/api/checklists',    checklistsRouter)
+app.use('/api/notifications', notificationsRouter)
+app.use('/api/audit',         auditRouter)
+app.use('/api/reports',       reportsRouter)
 
 // ── 404 handler ────────────────────────────────────────────────────────────
 
@@ -69,6 +77,10 @@ app.listen(PORT, () => {
   console.log(`│   Health     : http://localhost:${PORT}/api/health       │`)
   console.log(`│   Staff      : http://localhost:${PORT}/api/staff        │`)
   console.log(`│   Tasks      : http://localhost:${PORT}/api/tasks        │`)
+  console.log(`│   Checklists : http://localhost:${PORT}/api/checklists   │`)
+  console.log(`│   Notifs     : http://localhost:${PORT}/api/notifications │`)
+  console.log(`│   Audit      : http://localhost:${PORT}/api/audit        │`)
+  console.log(`│   Reports    : http://localhost:${PORT}/api/reports/daily│`)
   console.log('│   Mode       : Development (--watch enabled)         │')
   console.log('└─────────────────────────────────────────────────────┘\n')
 })
