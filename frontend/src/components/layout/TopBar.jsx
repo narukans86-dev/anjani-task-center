@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard',
@@ -10,9 +11,16 @@ const PAGE_TITLES = {
   '/settings':  'Settings',
 }
 
+const ROLE_BADGE = {
+  admin:   { label: 'Admin',   cls: 'bg-[#0A3D91] text-white' },
+  manager: { label: 'Manager', cls: 'bg-teal-600 text-white' },
+  staff:   { label: 'Staff',   cls: 'bg-slate-500 text-white' },
+}
+
 export default function TopBar({ onMenuClick }) {
   const location = useLocation()
   const title = PAGE_TITLES[location.pathname] ?? 'Anjani Medical'
+  const { user } = useAuth()
 
   const [time, setTime] = useState(() => new Date())
 
@@ -35,12 +43,14 @@ export default function TopBar({ onMenuClick }) {
     year: 'numeric',
   })
 
+  const badge = user ? (ROLE_BADGE[user.role] ?? ROLE_BADGE.staff) : null
+
   return (
-    <header className="h-14 flex items-center gap-4 px-4 border-b border-slate-800/70 bg-slate-950/80 backdrop-blur-sm shrink-0">
+    <header className="h-14 flex items-center gap-4 px-4 border-b border-[#D1DCF0] bg-white shadow-sm shrink-0">
       {/* Hamburger — mobile only */}
       <button
         onClick={onMenuClick}
-        className="lg:hidden text-slate-400 hover:text-slate-200 transition-colors p-1 -ml-1"
+        className="lg:hidden text-slate-500 hover:text-[#0A3D91] transition-colors p-1 -ml-1"
         aria-label="Open menu"
       >
         <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2">
@@ -49,27 +59,42 @@ export default function TopBar({ onMenuClick }) {
       </button>
 
       {/* Page title */}
-      <h1 className="text-white font-semibold text-base tracking-tight">{title}</h1>
+      <h1 className="text-[#111827] font-semibold text-base tracking-tight">{title}</h1>
 
       {/* Right section */}
       <div className="ml-auto flex items-center gap-3">
         {/* Clock */}
         <div className="hidden sm:flex flex-col items-end">
-          <span className="text-slate-200 text-xs font-mono font-medium leading-tight">{timeStr}</span>
-          <span className="text-slate-500 text-[10px] leading-tight">{dateStr}</span>
+          <span className="text-slate-500 text-xs font-mono font-medium leading-tight">{timeStr}</span>
+          <span className="text-slate-400 text-[10px] leading-tight">{dateStr}</span>
         </div>
 
         {/* Divider */}
-        <div className="hidden sm:block w-px h-6 bg-slate-800" />
+        <div className="hidden sm:block w-px h-6 bg-[#D1DCF0]" />
 
         {/* System Online badge */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
           </span>
-          <span className="text-emerald-400 text-xs font-medium">System Online</span>
+          <span className="text-emerald-600 text-xs font-medium">Online</span>
         </div>
+
+        {/* User name + role badge */}
+        {user && (
+          <>
+            <div className="hidden sm:block w-px h-6 bg-[#D1DCF0]" />
+            <div className="flex items-center gap-2">
+              <span className="text-[#111827] text-xs font-medium hidden md:block">{user.name}</span>
+              {badge && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${badge.cls}`}>
+                  {badge.label}
+                </span>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </header>
   )

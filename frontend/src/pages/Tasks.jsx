@@ -13,17 +13,17 @@ const PRIORITIES = ['low', 'medium', 'high', 'critical']
 const STATUSES = ['pending', 'in_progress', 'completed', 'delayed']
 
 const PRIORITY_CONFIG = {
-  critical: { label: 'Critical', cls: 'bg-red-500/10 text-red-400 border border-red-500/20' },
-  high:     { label: 'High',     cls: 'bg-orange-500/10 text-orange-400 border border-orange-500/20' },
-  medium:   { label: 'Medium',   cls: 'bg-blue-500/10 text-blue-400 border border-blue-500/20' },
-  low:      { label: 'Low',      cls: 'bg-slate-600/20 text-slate-400 border border-slate-600/30' },
+  critical: { label: 'Critical', cls: 'bg-red-50 text-red-600 border border-red-200' },
+  high:     { label: 'High',     cls: 'bg-orange-50 text-orange-600 border border-orange-200' },
+  medium:   { label: 'Medium',   cls: 'bg-blue-50 text-blue-600 border border-blue-200' },
+  low:      { label: 'Low',      cls: 'bg-slate-100 text-slate-500 border border-slate-200' },
 }
 
 const STATUS_CONFIG = {
-  pending:     { label: 'Pending',     cls: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' },
-  in_progress: { label: 'In Progress', cls: 'bg-blue-500/10 text-blue-400 border border-blue-500/20' },
-  completed:   { label: 'Completed',   cls: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' },
-  delayed:     { label: 'Delayed',     cls: 'bg-red-500/10 text-red-400 border border-red-500/20' },
+  pending:     { label: 'Pending',     cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  in_progress: { label: 'In Progress', cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  completed:   { label: 'Completed',   cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  delayed:     { label: 'Delayed',     cls: 'bg-red-50 text-red-600 border border-red-200' },
 }
 
 const DEFAULT_FORM = {
@@ -59,6 +59,9 @@ function StatusIcon({ status }) {
   return null
 }
 
+const inputCls =
+  'w-full bg-white border border-[#D1DCF0] rounded-lg px-3 py-2 text-[#111827] text-sm placeholder-slate-400 focus:outline-none focus:border-[#0A3D91] focus:ring-2 focus:ring-[#0A3D91]/10'
+
 function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList }) {
   const handle = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }))
 
@@ -67,16 +70,14 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  const inputCls =
-    'w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-teal-500/60'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative card-glass rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[92vh] overflow-y-auto">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[92vh] overflow-y-auto border border-[#D1DCF0]">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-white font-semibold text-lg">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <h3 className="text-[#111827] font-semibold text-lg">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -85,29 +86,29 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
 
         <div className="space-y-4">
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Title *</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Title *</label>
             <input value={form.title} onChange={handle('title')} placeholder="Task title" className={inputCls} />
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Description</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Description</label>
             <textarea
               value={form.description}
               onChange={handle('description')}
-              placeholder="Optional details…"
+              placeholder="Optional details..."
               rows={3}
               className={`${inputCls} resize-none`}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-slate-400 text-xs font-medium block mb-1.5">Category *</label>
+              <label className="text-slate-600 text-xs font-medium block mb-1.5">Category *</label>
               <select value={form.category} onChange={handle('category')} className={inputCls}>
-                <option value="">— Select —</option>
+                <option value="">-- Select --</option>
                 {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-medium block mb-1.5">Priority *</label>
+              <label className="text-slate-600 text-xs font-medium block mb-1.5">Priority *</label>
               <select value={form.priority} onChange={handle('priority')} className={inputCls}>
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
@@ -117,26 +118,26 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-slate-400 text-xs font-medium block mb-1.5">Status</label>
+              <label className="text-slate-600 text-xs font-medium block mb-1.5">Status</label>
               <select value={form.status} onChange={handle('status')} className={inputCls}>
                 {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-medium block mb-1.5">Assigned To</label>
+              <label className="text-slate-600 text-xs font-medium block mb-1.5">Assigned To</label>
               <select value={form.assigned_to} onChange={handle('assigned_to')} className={inputCls}>
-                <option value="">— Unassigned —</option>
+                <option value="">-- Unassigned --</option>
                 {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-slate-400 text-xs font-medium block mb-1.5">Due Date</label>
+              <label className="text-slate-600 text-xs font-medium block mb-1.5">Due Date</label>
               <input type="date" value={form.due_date} onChange={handle('due_date')} className={inputCls} />
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-medium block mb-1.5">Due Time</label>
+              <label className="text-slate-600 text-xs font-medium block mb-1.5">Due Time</label>
               <input type="time" value={form.due_time} onChange={handle('due_time')} className={inputCls} />
             </div>
           </div>
@@ -145,16 +146,16 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 text-sm hover:bg-slate-800 transition-colors"
+            className="flex-1 px-4 py-2 rounded-lg border border-[#D1DCF0] text-slate-600 text-sm hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onSave}
             disabled={saving || !form.title.trim() || !form.category}
-            className="flex-1 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+            className="flex-1 px-4 py-2 rounded-lg bg-[#0A3D91] hover:bg-[#0057D9] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
           >
-            {saving ? 'Saving…' : title.startsWith('Edit') ? 'Update Task' : 'Add Task'}
+            {saving ? 'Saving...' : title.startsWith('Edit') ? 'Update Task' : 'Add Task'}
           </button>
         </div>
       </div>
@@ -171,16 +172,16 @@ function DeleteConfirm({ task, onConfirm, onCancel, saving }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative card-glass rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-        <p className="text-white font-semibold mb-2">Delete Task?</p>
-        <p className="text-slate-400 text-sm mb-5">
-          "<span className="text-slate-200">{task.title}</span>" will be permanently removed.
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-[#D1DCF0]">
+        <p className="text-[#111827] font-semibold mb-2">Delete Task?</p>
+        <p className="text-slate-500 text-sm mb-5">
+          "<span className="text-[#111827]">{task.title}</span>" will be permanently removed.
         </p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 text-sm hover:bg-slate-800 transition-colors"
+            className="flex-1 px-4 py-2 rounded-lg border border-[#D1DCF0] text-slate-600 text-sm hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
@@ -189,7 +190,7 @@ function DeleteConfirm({ task, onConfirm, onCancel, saving }) {
             disabled={saving}
             className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
           >
-            {saving ? 'Deleting…' : 'Delete'}
+            {saving ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>
@@ -202,15 +203,15 @@ const STAFF_STATUSES = ['in_progress', 'completed']
 function StatusDropdown({ task, onSelect, isStaff }) {
   const options = isStaff ? STAFF_STATUSES : STATUSES
   return (
-    <div className="absolute right-0 top-full mt-1 z-20 card-glass rounded-xl p-1 min-w-[136px] shadow-xl border border-slate-700/60">
+    <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-xl p-1 min-w-[136px] shadow-xl border border-[#D1DCF0]">
       {options.map((s) => (
         <button
           key={s}
           onClick={() => onSelect(s)}
           className={`w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors ${
             task.status === s
-              ? 'text-teal-400 bg-teal-500/10'
-              : 'text-slate-300 hover:bg-slate-800/60'
+              ? 'text-[#0A3D91] bg-blue-50 font-semibold'
+              : 'text-slate-600 hover:bg-blue-50'
           }`}
         >
           {statusLabel(s)}
@@ -265,7 +266,6 @@ export default function Tasks() {
     return m
   }, [staffList])
 
-  // For staff role: find their staff record by name match to scope visible tasks
   const myStaffId = useMemo(() => {
     if (user?.role !== 'staff') return null
     const match = staffList.find((s) => s.name === user.name)
@@ -274,7 +274,6 @@ export default function Tasks() {
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
-      // Staff can only see their own tasks
       if (user?.role === 'staff') {
         if (myStaffId === null) return false
         if (String(t.assigned_to) !== String(myStaffId)) return false
@@ -365,21 +364,20 @@ export default function Tasks() {
 
   const setFilter = (k) => (e) => setFilters((p) => ({ ...p, [k]: e.target.value }))
   const hasFilters = Object.values(filters).some(Boolean)
-  const selectCls =
-    'bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-1.5 text-sm text-slate-300 focus:outline-none focus:border-teal-500/60'
+  const filterSelectCls =
+    'bg-white border border-[#D1DCF0] rounded-lg px-3 py-1.5 text-sm text-[#111827] focus:outline-none focus:border-[#0A3D91]'
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight mb-1">Task Management</h2>
-          <p className="text-slate-400 text-sm">Create, filter, and manage all staff tasks.</p>
+          <h2 className="text-2xl font-bold text-[#111827] tracking-tight mb-1">Task Management</h2>
+          <p className="text-slate-500 text-sm">Create, filter, and manage all staff tasks.</p>
         </div>
         {hasPermission('manage_tasks') && (
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white text-sm font-semibold rounded-lg transition-colors shrink-0"
+            className="flex items-center gap-2 px-4 py-2 bg-[#0A3D91] hover:bg-[#0057D9] text-white text-sm font-semibold rounded-lg transition-colors shrink-0"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -389,37 +387,31 @@ export default function Tasks() {
         )}
       </div>
 
-      {/* Filter bar */}
-      <div className="card-glass rounded-2xl p-4 mb-6">
+      <div className="bg-white rounded-2xl p-4 mb-6 border border-[#D1DCF0] shadow-sm">
         <div className="flex gap-3 flex-wrap items-center">
-          <select value={filters.status} onChange={setFilter('status')} className={selectCls}>
+          <select value={filters.status} onChange={setFilter('status')} className={filterSelectCls}>
             <option value="">All Status</option>
             {STATUSES.map((s) => <option key={s} value={s}>{statusLabel(s)}</option>)}
           </select>
-          <select value={filters.priority} onChange={setFilter('priority')} className={selectCls}>
+          <select value={filters.priority} onChange={setFilter('priority')} className={filterSelectCls}>
             <option value="">All Priority</option>
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
             ))}
           </select>
-          <select value={filters.category} onChange={setFilter('category')} className={selectCls}>
+          <select value={filters.category} onChange={setFilter('category')} className={filterSelectCls}>
             <option value="">All Categories</option>
             {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
-          <select value={filters.assigned_to} onChange={setFilter('assigned_to')} className={selectCls}>
+          <select value={filters.assigned_to} onChange={setFilter('assigned_to')} className={filterSelectCls}>
             <option value="">All Staff</option>
             {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <input
-            type="date"
-            value={filters.date}
-            onChange={setFilter('date')}
-            className={selectCls}
-          />
+          <input type="date" value={filters.date} onChange={setFilter('date')} className={filterSelectCls} />
           <div className="relative flex-1 min-w-[160px]">
             <svg
               viewBox="0 0 24 24"
-              className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
               fill="none" stroke="currentColor" strokeWidth="2"
             >
               <circle cx="11" cy="11" r="8" />
@@ -429,14 +421,14 @@ export default function Tasks() {
               type="text"
               value={filters.search}
               onChange={setFilter('search')}
-              placeholder="Search title or description…"
-              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-1.5 pl-8 text-sm text-slate-300 placeholder-slate-500 focus:outline-none focus:border-teal-500/60"
+              placeholder="Search title or description..."
+              className="w-full bg-white border border-[#D1DCF0] rounded-lg px-3 py-1.5 pl-8 text-sm text-[#111827] placeholder-slate-400 focus:outline-none focus:border-[#0A3D91]"
             />
           </div>
           {hasFilters && (
             <button
               onClick={() => setFilters({ status: '', priority: '', category: '', assigned_to: '', date: '', search: '' })}
-              className="text-slate-400 text-xs hover:text-white transition-colors whitespace-nowrap"
+              className="text-slate-500 text-xs hover:text-[#0A3D91] transition-colors whitespace-nowrap"
             >
               Clear all
             </button>
@@ -446,38 +438,37 @@ export default function Tasks() {
 
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#0A3D91]/20 border-t-[#0A3D91] rounded-full animate-spin" />
         </div>
       )}
 
       {error && (
-        <div className="card-glass rounded-2xl p-5 border-l-2 border-l-red-500/60">
-          <p className="text-red-400 text-sm">Failed to load tasks: {error}</p>
-          <button onClick={load} className="text-teal-400 text-xs mt-2 hover:underline">Retry</button>
+        <div className="bg-white rounded-2xl p-5 border border-[#D1DCF0] border-l-4 border-l-red-500">
+          <p className="text-red-500 text-sm">Failed to load tasks: {error}</p>
+          <button onClick={load} className="text-[#0A3D91] text-xs mt-2 hover:underline">Retry</button>
         </div>
       )}
 
       {!loading && !error && (
         <>
-          {/* ── Desktop table ─────────────────────────────────────────── */}
-          <div className="hidden md:block card-glass rounded-2xl overflow-hidden">
+          <div className="hidden md:block bg-white rounded-2xl overflow-hidden border border-[#D1DCF0] shadow-sm">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-800/70">
+                <tr className="border-b border-[#E8EFFF]">
                   {['Task', 'Category', 'Priority', 'Status', 'Assigned', 'Due', ''].map((h) => (
                     <th
                       key={h}
-                      className={`px-4 py-3.5 text-slate-400 text-xs font-medium uppercase tracking-wider ${h ? 'text-left' : 'text-right'}`}
+                      className={`px-4 py-3.5 text-slate-500 text-xs font-semibold uppercase tracking-wider ${h ? 'text-left' : 'text-right'}`}
                     >
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody className="divide-y divide-[#F0F4FF]">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-14 text-slate-500 text-sm">
+                    <td colSpan={7} className="text-center py-14 text-slate-400 text-sm">
                       No tasks match the current filters.
                     </td>
                   </tr>
@@ -487,16 +478,16 @@ export default function Tasks() {
                     const pr = PRIORITY_CONFIG[t.priority] || PRIORITY_CONFIG.low
                     const st = STATUS_CONFIG[t.status] || STATUS_CONFIG.pending
                     return (
-                      <tr key={t.id} className="hover:bg-slate-800/20 transition-colors">
+                      <tr key={t.id} className="hover:bg-blue-50/40 transition-colors">
                         <td className="px-4 py-3.5 max-w-[220px]">
-                          <p className="text-slate-200 font-medium truncate">{t.title}</p>
+                          <p className="text-[#111827] font-medium truncate">{t.title}</p>
                           {t.description && (
-                            <p className="text-slate-500 text-xs truncate mt-0.5">{t.description}</p>
+                            <p className="text-slate-400 text-xs truncate mt-0.5">{t.description}</p>
                           )}
                         </td>
                         <td className="px-4 py-3.5">
                           {t.category && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-700/50 text-slate-300 border border-slate-600/30">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#0A3D91] border border-blue-100">
                               {t.category}
                             </span>
                           )}
@@ -515,24 +506,21 @@ export default function Tasks() {
                         <td className="px-4 py-3.5">
                           {assignee ? (
                             <div className="flex items-center gap-1.5">
-                              <div
-                                className="w-2 h-2 rounded-full shrink-0"
-                                style={{ backgroundColor: assignee.color || '#64748b' }}
-                              />
-                              <span className="text-slate-300 text-xs truncate max-w-[100px]">{assignee.name}</span>
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: assignee.color || '#64748b' }} />
+                              <span className="text-slate-600 text-xs truncate max-w-[100px]">{assignee.name}</span>
                             </div>
                           ) : (
-                            <span className="text-slate-600 text-xs">—</span>
+                            <span className="text-slate-400 text-xs">-</span>
                           )}
                         </td>
                         <td className="px-4 py-3.5">
                           {t.due_date ? (
                             <div>
-                              <p className="text-slate-300 text-xs">{t.due_date}</p>
-                              {t.due_time && <p className="text-slate-500 text-xs">{t.due_time}</p>}
+                              <p className="text-slate-600 text-xs">{t.due_date}</p>
+                              {t.due_time && <p className="text-slate-400 text-xs">{t.due_time}</p>}
                             </div>
                           ) : (
-                            <span className="text-slate-600 text-xs">—</span>
+                            <span className="text-slate-400 text-xs">-</span>
                           )}
                         </td>
                         <td className="px-4 py-3.5">
@@ -540,7 +528,7 @@ export default function Tasks() {
                             {hasPermission('manage_tasks') && (
                               <button
                                 onClick={() => openEdit(t)}
-                                className="px-2.5 py-1 rounded border border-slate-700 text-slate-400 text-xs hover:text-white hover:border-slate-500 transition-colors"
+                                className="px-2.5 py-1 rounded border border-[#D1DCF0] text-slate-500 text-xs hover:text-[#0A3D91] hover:border-[#0A3D91]/30 transition-colors"
                               >
                                 Edit
                               </button>
@@ -548,9 +536,9 @@ export default function Tasks() {
                             <div className="relative">
                               <button
                                 onClick={() => setStatusMenu(statusMenu === t.id ? null : t.id)}
-                                className="px-2.5 py-1 rounded border border-slate-700 text-slate-400 text-xs hover:text-white hover:border-slate-500 transition-colors"
+                                className="px-2.5 py-1 rounded border border-[#D1DCF0] text-slate-500 text-xs hover:text-[#0A3D91] hover:border-[#0A3D91]/30 transition-colors"
                               >
-                                Status ▾
+                                Status v
                               </button>
                               {statusMenu === t.id && (
                                 <StatusDropdown task={t} onSelect={(s) => handleStatusChange(t.id, s)} isStaff={user?.role === 'staff'} />
@@ -559,7 +547,7 @@ export default function Tasks() {
                             {hasPermission('delete_tasks') && (
                               <button
                                 onClick={() => setDeleteTarget(t)}
-                                className="px-2.5 py-1 rounded border border-red-500/20 text-red-400 text-xs hover:bg-red-500/10 transition-colors"
+                                className="px-2.5 py-1 rounded border border-red-200 text-red-500 text-xs hover:bg-red-50 transition-colors"
                               >
                                 Delete
                               </button>
@@ -574,10 +562,9 @@ export default function Tasks() {
             </table>
           </div>
 
-          {/* ── Mobile cards ──────────────────────────────────────────── */}
           <div className="md:hidden space-y-3">
             {filtered.length === 0 ? (
-              <div className="text-center py-14 text-slate-500 text-sm">
+              <div className="text-center py-14 text-slate-400 text-sm">
                 No tasks match the current filters.
               </div>
             ) : (
@@ -586,12 +573,12 @@ export default function Tasks() {
                 const pr = PRIORITY_CONFIG[t.priority] || PRIORITY_CONFIG.low
                 const st = STATUS_CONFIG[t.status] || STATUS_CONFIG.pending
                 return (
-                  <div key={t.id} className="card-glass rounded-2xl p-4">
+                  <div key={t.id} className="bg-white rounded-2xl p-4 border border-[#D1DCF0] shadow-sm">
                     <div className="flex items-start justify-between gap-2 mb-2.5">
                       <div className="flex-1 min-w-0">
-                        <p className="text-slate-200 font-semibold text-sm truncate">{t.title}</p>
+                        <p className="text-[#111827] font-semibold text-sm truncate">{t.title}</p>
                         {t.description && (
-                          <p className="text-slate-500 text-xs mt-0.5 line-clamp-2">{t.description}</p>
+                          <p className="text-slate-400 text-xs mt-0.5 line-clamp-2">{t.description}</p>
                         )}
                       </div>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${pr.cls}`}>
@@ -601,7 +588,7 @@ export default function Tasks() {
 
                     <div className="flex flex-wrap gap-1.5 mb-2.5">
                       {t.category && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-700/50 text-slate-300 border border-slate-600/30">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#0A3D91] border border-blue-100">
                           {t.category}
                         </span>
                       )}
@@ -615,15 +602,13 @@ export default function Tasks() {
                       {assignee ? (
                         <div className="flex items-center gap-1.5">
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: assignee.color || '#64748b' }} />
-                          <span className="text-slate-300">{assignee.name}</span>
+                          <span className="text-slate-600">{assignee.name}</span>
                         </div>
                       ) : (
-                        <span className="text-slate-600">Unassigned</span>
+                        <span className="text-slate-400">Unassigned</span>
                       )}
                       {t.due_date && (
-                        <span className="text-slate-400">
-                          {t.due_date}{t.due_time ? ` ${t.due_time}` : ''}
-                        </span>
+                        <span className="text-slate-500">{t.due_date}{t.due_time ? ` ${t.due_time}` : ''}</span>
                       )}
                     </div>
 
@@ -631,7 +616,7 @@ export default function Tasks() {
                       {hasPermission('manage_tasks') && (
                         <button
                           onClick={() => openEdit(t)}
-                          className="flex-1 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs hover:bg-slate-800 transition-colors"
+                          className="flex-1 py-1.5 rounded-lg border border-[#D1DCF0] text-slate-600 text-xs hover:bg-blue-50 transition-colors"
                         >
                           Edit
                         </button>
@@ -639,20 +624,20 @@ export default function Tasks() {
                       <div className="relative flex-1">
                         <button
                           onClick={() => setStatusMenu(statusMenu === t.id ? null : t.id)}
-                          className="w-full py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs hover:bg-slate-800 transition-colors"
+                          className="w-full py-1.5 rounded-lg border border-[#D1DCF0] text-slate-600 text-xs hover:bg-blue-50 transition-colors"
                         >
-                          Status ▾
+                          Status v
                         </button>
                         {statusMenu === t.id && (
-                          <div className="absolute left-0 bottom-full mb-1 z-20 card-glass rounded-xl p-1 min-w-[136px] shadow-xl border border-slate-700/60">
+                          <div className="absolute left-0 bottom-full mb-1 z-20 bg-white rounded-xl p-1 min-w-[136px] shadow-xl border border-[#D1DCF0]">
                             {(user?.role === 'staff' ? STAFF_STATUSES : STATUSES).map((s) => (
                               <button
                                 key={s}
                                 onClick={() => handleStatusChange(t.id, s)}
                                 className={`w-full text-left px-3 py-1.5 rounded-lg text-xs transition-colors ${
                                   t.status === s
-                                    ? 'text-teal-400 bg-teal-500/10'
-                                    : 'text-slate-300 hover:bg-slate-800/60'
+                                    ? 'text-[#0A3D91] bg-blue-50 font-semibold'
+                                    : 'text-slate-600 hover:bg-blue-50'
                                 }`}
                               >
                                 {statusLabel(s)}
@@ -664,7 +649,7 @@ export default function Tasks() {
                       {hasPermission('delete_tasks') && (
                         <button
                           onClick={() => setDeleteTarget(t)}
-                          className="flex-1 py-1.5 rounded-lg border border-red-500/20 text-red-400 text-xs hover:bg-red-500/10 transition-colors"
+                          className="flex-1 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs hover:bg-red-50 transition-colors"
                         >
                           Delete
                         </button>
@@ -677,14 +662,13 @@ export default function Tasks() {
           </div>
 
           {tasks.length > 0 && (
-            <p className="text-slate-600 text-xs text-center mt-4">
+            <p className="text-slate-400 text-xs text-center mt-4">
               Showing {filtered.length} of {tasks.length} tasks
             </p>
           )}
         </>
       )}
 
-      {/* Modals */}
       {showAdd && (
         <TaskModal
           title="Add Task"
@@ -716,7 +700,6 @@ export default function Tasks() {
         />
       )}
 
-      {/* Backdrop to close status menu */}
       {statusMenu !== null && (
         <div className="fixed inset-0 z-10" onClick={() => setStatusMenu(null)} />
       )}

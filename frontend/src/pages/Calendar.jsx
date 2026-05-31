@@ -43,12 +43,12 @@ function TaskListItem({ task, staffList, onComplete, completing }) {
 
   return (
     <div
-      className="p-3 rounded-xl bg-slate-800/30 border border-slate-700/30 hover:bg-slate-800/50 transition-colors"
+      className="p-3 rounded-xl bg-white border border-[#D1DCF0] hover:bg-blue-50/50 transition-colors"
       style={{ borderLeft: `3px solid ${borderColor}` }}
     >
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-medium truncate ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+          <p className={`text-sm font-medium truncate ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-[#111827]'}`}>
             {task.title}
           </p>
           {task.description && (
@@ -57,7 +57,7 @@ function TaskListItem({ task, staffList, onComplete, completing }) {
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
             <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${st.cls}`}>{st.label}</span>
             {task.category && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-700/50 text-slate-300 border border-slate-600/30">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#0A3D91] border border-blue-100">
                 {task.category}
               </span>
             )}
@@ -197,7 +197,7 @@ export default function Calendar() {
           <div className="flex items-center justify-between mb-5">
             <button
               onClick={prevMonth}
-              className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#0A3D91] transition-colors"
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -208,7 +208,7 @@ export default function Calendar() {
             </h3>
             <button
               onClick={nextMonth}
-              className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#0A3D91] transition-colors"
             >
               <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -243,8 +243,8 @@ export default function Calendar() {
                     'relative flex flex-col items-center justify-start pt-1.5 pb-1 rounded-xl transition-all aspect-square text-xs font-medium',
                     isToday  ? 'bg-teal-500 text-white ring-2 ring-teal-400/50' :
                     isSel    ? 'bg-slate-700 text-white ring-2 ring-slate-500/50' :
-                    hasTasks ? 'hover:bg-slate-800 text-slate-200' :
-                               'hover:bg-slate-800/40 text-slate-500',
+                    hasTasks ? 'hover:bg-blue-50 text-[#374151]' :
+                               'hover:bg-blue-50/50 text-slate-400',
                   ].join(' ')}
                 >
                   <span>{day}</span>
@@ -296,7 +296,7 @@ export default function Calendar() {
 
           <div className="flex-1 overflow-y-auto space-y-2 max-h-[520px] pr-0.5">
             {loading
-              ? [1,2,3].map((i) => <div key={i} className="h-16 rounded-xl bg-slate-800/40 animate-pulse" />)
+              ? [1,2,3].map((i) => <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />)
               : selectedTasks.length === 0
               ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">

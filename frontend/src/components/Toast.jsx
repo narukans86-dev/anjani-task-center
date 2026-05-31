@@ -7,12 +7,12 @@ function ToastItem({ toast, remove }) {
   }, [toast.id, remove])
 
   const cfg =
-    toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' :
-    toast.type === 'error'   ? 'bg-red-500/10 border-red-500/30 text-red-300' :
-                               'bg-slate-800/90 border-slate-700/80 text-slate-300'
+    toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+    toast.type === 'error'   ? 'bg-red-50 border-red-200 text-red-600' :
+                               'bg-white border-[#D1DCF0] text-[#111827]'
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border backdrop-blur-sm shadow-xl min-w-[240px] max-w-sm toast-in ${cfg}`}>
+    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg min-w-[240px] max-w-sm toast-in ${cfg}`}>
       <span className="text-sm font-medium flex-1">{toast.message}</span>
       <button onClick={() => remove(toast.id)} className="opacity-60 hover:opacity-100 transition-opacity shrink-0">
         <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">

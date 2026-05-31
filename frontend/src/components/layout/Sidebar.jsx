@@ -85,7 +85,7 @@ export default function Sidebar({ open, onClose }) {
       {/* Mobile backdrop */}
       {open && (
         <div
-          className="fixed inset-0 z-20 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-20 bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={onClose}
         />
       )}
@@ -94,25 +94,25 @@ export default function Sidebar({ open, onClose }) {
       <aside
         className={[
           'fixed inset-y-0 left-0 z-30 flex flex-col w-64',
-          'bg-slate-950 border-r border-slate-800/70',
+          'bg-white border-r border-[#D1DCF0] shadow-sm',
           'transition-transform duration-200 ease-in-out',
           'lg:static lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-800/70">
-          <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/25 flex items-center justify-center shrink-0 glow-teal">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" strokeWidth="1.75">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4m0 0h18" />
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-[#D1DCF0]">
+          <div className="w-9 h-9 rounded-lg bg-[#0A3D91] flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
             </svg>
           </div>
           <div className="min-w-0">
-            <p className="text-white text-sm font-semibold leading-tight truncate">Anjani Medical</p>
-            <p className="text-teal-400/70 text-[10px] tracking-wider uppercase leading-tight">Task Command Center</p>
+            <p className="text-[#0A3D91] font-bold text-sm leading-tight truncate">ANJANI MEDICAL</p>
+            <p className="text-slate-400 text-xs leading-tight">Task Center</p>
           </div>
           {/* Mobile close */}
-          <button onClick={onClose} className="ml-auto lg:hidden text-slate-500 hover:text-slate-300 transition-colors">
+          <button onClick={onClose} className="ml-auto lg:hidden text-slate-400 hover:text-slate-600 transition-colors">
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -121,7 +121,7 @@ export default function Sidebar({ open, onClose }) {
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <p className="px-3 mb-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-600">
+          <p className="px-3 mb-2 text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-400">
             Navigation
           </p>
           {visibleNav.map(({ to, label, icon }) => (
@@ -133,18 +133,15 @@ export default function Sidebar({ open, onClose }) {
                 [
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
                   isActive
-                    ? 'bg-teal-500/10 text-teal-300 border border-teal-500/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent',
+                    ? 'bg-blue-50 text-[#0A3D91] border-l-2 border-[#0A3D91] font-semibold'
+                    : 'text-slate-600 hover:bg-blue-50 hover:text-[#0A3D91] border-l-2 border-transparent',
                 ].join(' ')
               }
             >
               {({ isActive }) => (
                 <>
-                  <span className={isActive ? 'text-teal-400' : 'text-slate-500'}>{icon}</span>
+                  <span className={isActive ? 'text-[#0A3D91]' : 'text-slate-400'}>{icon}</span>
                   {label}
-                  {isActive && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-400" />
-                  )}
                 </>
               )}
             </NavLink>
@@ -152,20 +149,20 @@ export default function Sidebar({ open, onClose }) {
         </nav>
 
         {/* Footer — user info + logout */}
-        <div className="px-4 py-4 border-t border-slate-800/70">
+        <div className="px-4 py-4 border-t border-[#D1DCF0]">
           {user && (
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-teal-500/15 border border-teal-500/25 flex items-center justify-center text-[11px] font-bold text-teal-300 shrink-0">
+              <div className="w-8 h-8 rounded-full bg-blue-50 border border-[#D1DCF0] flex items-center justify-center text-[11px] font-bold text-[#0A3D91] shrink-0">
                 {initials(user.name)}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-slate-200 text-xs font-semibold truncate">{user.name}</p>
-                <p className="text-slate-500 text-[10px] truncate">{ROLE_LABEL[user.role] ?? user.role}</p>
+                <p className="text-[#111827] text-xs font-semibold truncate">{user.name}</p>
+                <p className="text-slate-400 text-[10px] truncate">{ROLE_LABEL[user.role] ?? user.role}</p>
               </div>
               <button
                 onClick={logout}
                 title="Sign out"
-                className="shrink-0 p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
               >
                 <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -173,7 +170,7 @@ export default function Sidebar({ open, onClose }) {
               </button>
             </div>
           )}
-          <p className="text-slate-700 text-[10px] text-center">
+          <p className="text-slate-400 text-[10px] text-center">
             v1.0.0 &middot; Local Build &middot; Port 5173
           </p>
         </div>

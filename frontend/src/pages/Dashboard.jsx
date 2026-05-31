@@ -20,10 +20,10 @@ const PRIORITY_DOT = {
 }
 
 const STATUS_CFG = {
-  pending:     { label: 'Pending',     cls: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' },
-  in_progress: { label: 'In Progress', cls: 'bg-blue-500/10 text-blue-400 border border-blue-500/20' },
-  completed:   { label: 'Completed',   cls: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' },
-  delayed:     { label: 'Delayed',     cls: 'bg-red-500/10 text-red-400 border border-red-500/20' },
+  pending:     { label: 'Pending',     cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  in_progress: { label: 'In Progress', cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  completed:   { label: 'Completed',   cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  delayed:     { label: 'Delayed',     cls: 'bg-red-50 text-red-600 border border-red-200' },
 }
 
 const DEPT_COLORS = [
@@ -42,23 +42,23 @@ function initials(name) {
 
 function StatCard({ label, value, color, icon, loading }) {
   const palette = {
-    teal:    { bg: 'bg-teal-500/10',    border: 'border-teal-500/20',    icon: 'text-teal-400',    val: 'text-teal-300' },
-    emerald: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', icon: 'text-emerald-400', val: 'text-emerald-300' },
-    amber:   { bg: 'bg-amber-500/10',   border: 'border-amber-500/20',   icon: 'text-amber-400',   val: 'text-amber-300' },
-    red:     { bg: 'bg-red-500/10',     border: 'border-red-500/20',     icon: 'text-red-400',     val: 'text-red-300' },
+    teal:    { bg: 'bg-blue-50',    border: 'border-blue-100',    icon: 'text-[#0A3D91]', val: 'text-[#0A3D91]' },
+    emerald: { bg: 'bg-emerald-50', border: 'border-emerald-100', icon: 'text-emerald-600', val: 'text-emerald-600' },
+    amber:   { bg: 'bg-amber-50',   border: 'border-amber-100',   icon: 'text-amber-600',   val: 'text-amber-600' },
+    red:     { bg: 'bg-red-50',     border: 'border-red-100',     icon: 'text-red-500',     val: 'text-red-500' },
   }[color]
 
   return (
-    <div className="card-glass rounded-2xl p-5 flex items-center gap-4">
+    <div className="bg-white rounded-2xl p-5 flex items-center gap-4 border border-[#D1DCF0] shadow-sm">
       <div className={`w-11 h-11 rounded-xl ${palette.bg} border ${palette.border} flex items-center justify-center shrink-0`}>
         <span className={palette.icon}>{icon}</span>
       </div>
       <div>
         {loading
-          ? <div className="h-7 w-12 bg-slate-800 rounded animate-pulse mb-1" />
+          ? <div className="h-7 w-12 bg-slate-100 rounded animate-pulse mb-1" />
           : <p className={`text-2xl font-bold tabular-nums ${palette.val}`}>{value}</p>
         }
-        <p className="text-slate-400 text-xs font-medium">{label}</p>
+        <p className="text-slate-500 text-xs font-medium">{label}</p>
       </div>
     </div>
   )
@@ -71,11 +71,11 @@ function TodayTaskItem({ task, staffList, onComplete, completing }) {
 
   return (
     <div
-      className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/30 border border-slate-700/30 hover:bg-slate-800/50 transition-colors"
+      className="flex items-center gap-3 p-3 rounded-xl bg-white border border-[#D1DCF0] hover:bg-blue-50/50 transition-colors"
       style={{ borderLeft: `3px solid ${borderColor}` }}
     >
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${task.status === 'completed' ? 'line-through text-slate-500' : 'text-slate-200'}`}>
+        <p className={`text-sm font-medium truncate ${task.status === 'completed' ? 'line-through text-slate-400' : 'text-[#111827]'}`}>
           {task.title}
         </p>
         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -94,11 +94,11 @@ function TodayTaskItem({ task, staffList, onComplete, completing }) {
         <button
           onClick={() => onComplete(task.id)}
           disabled={completing === task.id}
-          className="shrink-0 w-7 h-7 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 hover:bg-teal-500/20 transition-colors disabled:opacity-50"
+          className="shrink-0 w-7 h-7 rounded-lg bg-[#0A3D91] flex items-center justify-center text-white hover:bg-[#0057D9] transition-colors disabled:opacity-50"
           title="Mark complete"
         >
           {completing === task.id
-            ? <div className="w-3 h-3 border border-teal-400/40 border-t-teal-400 rounded-full animate-spin" />
+            ? <div className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />
             : <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
@@ -110,9 +110,9 @@ function TodayTaskItem({ task, staffList, onComplete, completing }) {
 }
 
 const ROLE_BADGE = {
-  admin:   { label: 'Admin',   cls: 'bg-teal-500/15 text-teal-300 border-teal-500/30' },
-  manager: { label: 'Manager', cls: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
-  staff:   { label: 'Staff',   cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  admin:   { label: 'Admin',   cls: 'bg-[#0A3D91] text-white border-transparent' },
+  manager: { label: 'Manager', cls: 'bg-teal-600 text-white border-transparent' },
+  staff:   { label: 'Staff',   cls: 'bg-slate-500 text-white border-transparent' },
 }
 
 function greeting() {
@@ -275,7 +275,7 @@ export default function Dashboard() {
       {/* ── Welcome ─────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">
+          <h2 className="text-xl font-bold text-[#111827] tracking-tight">
             Good {greeting()}, {user?.name ?? 'there'}
           </h2>
           <p className="text-slate-500 text-xs mt-0.5">Here's what's happening today.</p>
@@ -297,11 +297,11 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
 
         {/* Today's Tasks */}
-        <div className={`${user?.role === 'staff' ? 'lg:col-span-5' : 'lg:col-span-3'} card-glass rounded-2xl p-5`}>
+        <div className={`${user?.role === 'staff' ? 'lg:col-span-5' : 'lg:col-span-3'} bg-white rounded-2xl p-5 border border-[#D1DCF0] shadow-sm`}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-semibold">Today's Tasks</h3>
+            <h3 className="text-[#111827] font-semibold">Today's Tasks</h3>
             {visibleTodayTasks.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-500/10 text-teal-400 border border-teal-500/20">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-[#0A3D91] border border-blue-200">
                 {visibleTodayTasks.length}
               </span>
             )}
@@ -309,12 +309,12 @@ export default function Dashboard() {
           <div className="overflow-y-auto max-h-80 space-y-2 pr-1 scrollbar-thin">
             {loading
               ? [1,2,3].map((i) => (
-                  <div key={i} className="h-14 rounded-xl bg-slate-800/40 animate-pulse" />
+                  <div key={i} className="h-14 rounded-xl bg-slate-100 animate-pulse" />
                 ))
               : visibleTodayTasks.length === 0
               ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
-                  <svg viewBox="0 0 24 24" className="w-8 h-8 text-slate-700" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <svg viewBox="0 0 24 24" className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2" />
                   </svg>
                   <p className="text-slate-500 text-sm">No tasks scheduled for today</p>
@@ -335,12 +335,12 @@ export default function Dashboard() {
 
         {/* Staff Progress — hidden for staff role */}
         {user?.role !== 'staff' && (
-        <div className="lg:col-span-2 card-glass rounded-2xl p-5">
-          <h3 className="text-white font-semibold mb-4">Staff Progress</h3>
+        <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-[#D1DCF0] shadow-sm">
+          <h3 className="text-[#111827] font-semibold mb-4">Staff Progress</h3>
           <div className="space-y-4 overflow-y-auto max-h-80">
             {loading
               ? [1,2,3].map((i) => (
-                  <div key={i} className="h-10 rounded-lg bg-slate-800/40 animate-pulse" />
+                  <div key={i} className="h-10 rounded-lg bg-slate-100 animate-pulse" />
                 ))
               : staffProgress.map((s) => {
                   const pct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0
@@ -354,14 +354,14 @@ export default function Dashboard() {
                           {initials(s.name)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-slate-200 text-xs font-medium truncate">{s.name}</p>
+                          <p className="text-[#111827] text-xs font-medium truncate">{s.name}</p>
                           {s.role && <p className="text-slate-500 text-[10px] truncate">{s.role}</p>}
                         </div>
-                        <span className="text-slate-400 text-[10px] tabular-nums shrink-0">
+                        <span className="text-slate-500 text-[10px] tabular-nums shrink-0">
                           {s.total === 0 ? '0 tasks' : `${s.completed}/${s.total}`}
                         </span>
                       </div>
-                      <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden ml-9">
+                      <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden ml-9">
                         <div
                           className="h-full rounded-full transition-all duration-500"
                           style={{ width: `${pct}%`, backgroundColor: s.color || '#3b82f6' }}
@@ -380,10 +380,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Department Summary */}
-        <div className="card-glass rounded-2xl p-5">
-          <h3 className="text-white font-semibold mb-4">Department Summary</h3>
+        <div className="bg-white rounded-2xl p-5 border border-[#D1DCF0] shadow-sm">
+          <h3 className="text-[#111827] font-semibold mb-4">Department Summary</h3>
           {loading
-            ? [1,2,3,4].map((i) => <div key={i} className="h-6 rounded bg-slate-800/40 animate-pulse mb-3" />)
+            ? [1,2,3,4].map((i) => <div key={i} className="h-6 rounded bg-slate-100 animate-pulse mb-3" />)
             : deptData.length === 0
             ? <p className="text-slate-500 text-sm text-center py-8">No category data yet</p>
             : (
@@ -391,10 +391,10 @@ export default function Dashboard() {
                 {deptData.map((d, i) => (
                   <div key={d.category}>
                     <div className="flex justify-between text-xs mb-1">
-                      <span className="text-slate-300 font-medium truncate">{d.category || 'Uncategorised'}</span>
-                      <span className="text-slate-400 tabular-nums ml-2 shrink-0">{d.count}</span>
+                      <span className="text-[#111827] font-medium truncate">{d.category || 'Uncategorised'}</span>
+                      <span className="text-slate-500 tabular-nums ml-2 shrink-0">{d.count}</span>
                     </div>
-                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-2 bg-blue-50 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{
@@ -411,17 +411,17 @@ export default function Dashboard() {
         </div>
 
         {/* Critical Tasks */}
-        <div className="card-glass rounded-2xl p-5">
+        <div className="bg-white rounded-2xl p-5 border border-[#D1DCF0] shadow-sm">
           <div className="flex items-center gap-2 mb-4">
-            <h3 className="text-white font-semibold">Critical Tasks</h3>
+            <h3 className="text-[#111827] font-semibold">Critical Tasks</h3>
             {criticalTasks.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
                 {criticalTasks.length}
               </span>
             )}
           </div>
           {loading
-            ? [1,2].map((i) => <div key={i} className="h-14 rounded-xl bg-slate-800/40 animate-pulse mb-2" />)
+            ? [1,2].map((i) => <div key={i} className="h-14 rounded-xl bg-slate-100 animate-pulse mb-2" />)
             : criticalTasks.length === 0
             ? (
               <div className="flex flex-col items-center justify-center py-8 gap-2">
@@ -436,23 +436,23 @@ export default function Dashboard() {
                 {criticalTasks.map((t) => {
                   const assignee = staffList.find((s) => String(s.id) === String(t.assigned_to))
                   return (
-                    <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl bg-red-500/5 border border-red-500/15">
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
+                    <div key={t.id} className="flex items-start gap-3 p-3 rounded-xl bg-red-50 border border-red-100">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-slate-200 text-sm font-medium truncate">{t.title}</p>
+                        <p className="text-[#111827] text-sm font-medium truncate">{t.title}</p>
                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                           {t.due_date && (
-                            <span className="text-red-400/70 text-[10px]">{t.due_date}</span>
+                            <span className="text-red-500 text-[10px]">{t.due_date}</span>
                           )}
                           {t.due_time && (
-                            <span className="text-red-400/70 text-[10px]">{t.due_time}</span>
+                            <span className="text-red-500 text-[10px]">{t.due_time}</span>
                           )}
                           {assignee && (
                             <span className="text-slate-500 text-[10px]">· {assignee.name}</span>
                           )}
                         </div>
                       </div>
-                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 border border-red-200 shrink-0">
                         Critical
                       </span>
                     </div>
@@ -465,22 +465,22 @@ export default function Dashboard() {
       </div>
 
       {/* ── Row 4: Mini Calendar ──────────────────────────────────────────── */}
-      <div className="card-glass rounded-2xl p-5">
+      <div className="bg-white rounded-2xl p-5 border border-[#D1DCF0] shadow-sm">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-semibold">Calendar</h3>
+          <h3 className="text-[#111827] font-semibold">Calendar</h3>
           <div className="flex items-center gap-2">
             <button
               onClick={prevMonth}
-              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#0A3D91] transition-colors"
             >
               {ChevLeft}
             </button>
-            <span className="text-slate-200 text-sm font-medium w-32 text-center">
+            <span className="text-[#111827] text-sm font-medium w-32 text-center">
               {MONTHS[month]} {year}
             </span>
             <button
               onClick={nextMonth}
-              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-[#0A3D91] transition-colors"
             >
               {ChevRight}
             </button>
@@ -489,7 +489,7 @@ export default function Dashboard() {
 
         <div className="grid grid-cols-7 gap-0.5">
           {['Su','Mo','Tu','We','Th','Fr','Sa'].map((d) => (
-            <div key={d} className="text-center text-slate-600 text-[10px] font-semibold py-1">{d}</div>
+            <div key={d} className="text-center text-slate-400 text-[10px] font-semibold py-1">{d}</div>
           ))}
           {calCells.map((day, i) => {
             if (!day) return <div key={`e-${i}`} />
@@ -506,10 +506,10 @@ export default function Dashboard() {
                 className={[
                   'relative flex flex-col items-center py-1.5 rounded-lg transition-colors text-xs font-medium',
                   isToday
-                    ? 'bg-teal-500 text-white'
+                    ? 'bg-[#0A3D91] text-white'
                     : dayTasks.length
-                    ? 'hover:bg-slate-800 text-slate-200'
-                    : 'hover:bg-slate-800/50 text-slate-500',
+                    ? 'hover:bg-blue-50 text-[#111827]'
+                    : 'hover:bg-slate-50 text-slate-400',
                 ].join(' ')}
               >
                 {day}
@@ -529,7 +529,7 @@ export default function Dashboard() {
           })}
         </div>
 
-        <p className="text-slate-600 text-[10px] text-center mt-3">
+        <p className="text-slate-400 text-[10px] text-center mt-3">
           Click a date to view its tasks
         </p>
       </div>

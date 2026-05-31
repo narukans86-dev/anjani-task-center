@@ -20,10 +20,10 @@ const TABS = [
 
 function Section({ title, children, className = '' }) {
   return (
-    <div className={`card-glass rounded-2xl overflow-hidden mb-5 ${className}`}>
+    <div className={`bg-white rounded-2xl overflow-hidden mb-5 border border-[#D1DCF0] shadow-sm ${className}`}>
       {title && (
-        <div className="px-5 py-3.5 border-b border-slate-800/70">
-          <p className="text-slate-400 text-xs uppercase tracking-widest font-medium">{title}</p>
+        <div className="px-5 py-3.5 border-b border-[#D1DCF0]">
+          <p className="text-slate-500 text-xs uppercase tracking-widest font-medium">{title}</p>
         </div>
       )}
       <div className="p-5">{children}</div>
@@ -34,7 +34,7 @@ function Section({ title, children, className = '' }) {
 function Field({ label, hint, children }) {
   return (
     <div className="mb-5 last:mb-0">
-      <label className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-[#111827] mb-1">{label}</label>
       {hint && <p className="text-xs text-slate-500 mb-2">{hint}</p>}
       {children}
     </div>
@@ -44,7 +44,7 @@ function Field({ label, hint, children }) {
 function Input({ className = '', ...props }) {
   return (
     <input
-      className={`w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-teal-500/60 transition-colors ${className}`}
+      className={`w-full bg-white border border-[#D1DCF0] rounded-lg px-3 py-2 text-sm text-[#111827] placeholder-slate-400 focus:outline-none focus:border-[#0A3D91] focus:ring-2 focus:ring-[#0A3D91]/10 transition-colors ${className}`}
       {...props}
     />
   )
@@ -53,9 +53,9 @@ function Input({ className = '', ...props }) {
 function Btn({ variant = 'primary', className = '', ...props }) {
   const base = 'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed'
   const variants = {
-    primary: 'bg-teal-500/15 text-teal-300 border border-teal-500/30 hover:bg-teal-500/25',
-    danger:  'bg-red-500/15  text-red-400  border border-red-500/30  hover:bg-red-500/25',
-    ghost:   'bg-slate-800   text-slate-300 border border-slate-700  hover:bg-slate-700',
+    primary: 'bg-[#0A3D91] text-white border border-transparent hover:bg-[#0057D9]',
+    danger:  'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100',
+    ghost:   'bg-white text-slate-600 border border-[#D1DCF0] hover:bg-slate-50',
   }
   return <button className={`${base} ${variants[variant]} ${className}`} {...props} />
 }
@@ -77,7 +77,7 @@ function TagList({ items, onRemove, onAdd, placeholder }) {
         {items.map((item) => (
           <span
             key={item}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 text-xs"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-50 border border-blue-100 text-[#0A3D91] text-xs"
           >
             {item}
             <button
@@ -91,7 +91,7 @@ function TagList({ items, onRemove, onAdd, placeholder }) {
             </button>
           </span>
         ))}
-        {items.length === 0 && <span className="text-slate-600 text-xs italic">No items yet</span>}
+        {items.length === 0 && <span className="text-slate-400 text-xs italic">No items yet</span>}
       </div>
       <div className="flex gap-2">
         <Input
@@ -151,7 +151,7 @@ function GeneralTab({ settings, onChange, onSave, saving }) {
       </Field>
 
       <div className="mt-1 mb-5">
-        <label className="block text-sm font-medium text-slate-300 mb-2">Working Hours</label>
+        <label className="block text-sm font-medium text-[#111827] mb-2">Working Hours</label>
         <div className="flex items-center gap-3">
           <Input
             type="time"
@@ -289,7 +289,7 @@ function BackupTab() {
           Download a full JSON backup of all tasks, staff, and settings.
         </p>
         {lastExport && (
-          <p className="text-slate-600 text-xs mb-3">
+          <p className="text-slate-400 text-xs mb-3">
             Last export: {new Date(lastExport).toLocaleString()}
           </p>
         )}
@@ -325,13 +325,13 @@ function BackupTab() {
         </Btn>
       </Section>
 
-      <div className="card-glass rounded-2xl overflow-hidden border border-red-500/25">
-        <div className="px-5 py-3.5 border-b border-red-500/20 bg-red-500/5">
-          <p className="text-red-400 text-xs uppercase tracking-widest font-medium">Danger Zone</p>
+      <div className="bg-white rounded-2xl overflow-hidden border border-red-200">
+        <div className="px-5 py-3.5 border-b border-red-200 bg-red-50">
+          <p className="text-red-600 text-xs uppercase tracking-widest font-medium">Danger Zone</p>
         </div>
         <div className="p-5 space-y-6">
           <div>
-            <p className="text-slate-300 text-sm font-medium">Clear All Data</p>
+            <p className="text-[#111827] text-sm font-medium">Clear All Data</p>
             <p className="text-slate-500 text-xs mt-0.5 mb-2">
               Permanently removes all tasks and staff. Settings are preserved.
             </p>
@@ -341,8 +341,8 @@ function BackupTab() {
               loading={clearing}
             />
           </div>
-          <div className="border-t border-slate-800/70 pt-6">
-            <p className="text-slate-300 text-sm font-medium">Reset to Sample Data</p>
+          <div className="border-t border-[#D1DCF0] pt-6">
+            <p className="text-[#111827] text-sm font-medium">Reset to Sample Data</p>
             <p className="text-slate-500 text-xs mt-0.5 mb-2">
               Wipes everything and re-seeds 6 default staff members and 3 sample tasks.
             </p>
@@ -375,9 +375,9 @@ const STACK = [
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3 border-b border-slate-800/60 last:border-0 text-sm">
-      <span className="text-slate-400">{label}</span>
-      <span className="text-slate-200 font-mono text-xs bg-slate-900 border border-slate-800 rounded-md px-2 py-1">{value}</span>
+    <div className="flex items-start justify-between gap-4 py-3 border-b border-[#D1DCF0] last:border-0 text-sm">
+      <span className="text-slate-500">{label}</span>
+      <span className="text-[#111827] font-mono text-xs bg-[#F0F4FF] border border-[#D1DCF0] rounded-md px-2 py-1">{value}</span>
     </div>
   )
 }
@@ -387,13 +387,13 @@ function AboutTab() {
     <>
       <Section title="Application">
         <div className="flex items-center gap-4 mb-5">
-          <div className="w-12 h-12 rounded-xl bg-teal-500/15 border border-teal-500/30 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" className="w-6 h-6 text-teal-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 text-[#0A3D91]" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
           </div>
           <div>
-            <p className="text-white font-semibold">Anjani Staff Task Command Center</p>
+            <p className="text-[#111827] font-semibold">Anjani Staff Task Command Center</p>
             <p className="text-slate-500 text-xs mt-0.5">v1.0.0 · Developed for Anjani Medical</p>
           </div>
         </div>
@@ -406,15 +406,15 @@ function AboutTab() {
         <div className="space-y-3">
           {PHASES.map((p) => (
             <div key={p.label} className="flex items-center gap-3">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${p.done ? 'bg-emerald-500/15 border border-emerald-500/30' : 'bg-slate-800 border border-slate-700'}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${p.done ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50 border border-slate-200'}`}>
                 {p.done && (
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 )}
               </div>
               <div>
-                <span className="text-slate-300 text-sm font-medium">{p.label}</span>
+                <span className="text-[#111827] text-sm font-medium">{p.label}</span>
                 <span className="text-slate-500 text-xs ml-2">{p.detail}</span>
               </div>
             </div>
@@ -461,20 +461,20 @@ export default function Settings() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white tracking-tight mb-1">Settings</h2>
-        <p className="text-slate-400 text-sm">Configure the app, manage data, and view system info.</p>
+        <h2 className="text-2xl font-bold text-[#111827] tracking-tight mb-1">Settings</h2>
+        <p className="text-slate-500 text-sm">Configure the app, manage data, and view system info.</p>
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 mb-6 bg-slate-900/60 border border-slate-800 rounded-xl p-1">
+      <div className="flex gap-1 mb-6 bg-white border border-[#D1DCF0] rounded-xl p-1 shadow-sm">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
               activeTab === tab.id
-                ? 'bg-teal-500/15 text-teal-300 border border-teal-500/30'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-[#F0F4FF] text-[#0A3D91] border-b-2 border-[#0A3D91] font-semibold'
+                : 'text-slate-500 hover:text-[#0A3D91]'
             }`}
           >
             {tab.label}

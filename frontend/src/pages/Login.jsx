@@ -30,23 +30,22 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 bg-grid-slate flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#F0F4FF] bg-grid-slate flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Card */}
-        <div className="card-glass rounded-2xl p-8 shadow-2xl">
+        <div className="bg-white rounded-2xl p-8 shadow-xl border border-[#D1DCF0]">
 
           {/* Brand */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-teal-500/10 border border-teal-500/25 flex items-center justify-center mb-4 glow-teal">
-              <svg viewBox="0 0 24 24" className="w-7 h-7 text-teal-400" fill="none" stroke="currentColor" strokeWidth="1.75">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" className="text-teal-400" />
+            <div className="w-14 h-14 rounded-2xl bg-[#0A3D91] flex items-center justify-center mb-4">
+              <svg viewBox="0 0 24 24" className="w-7 h-7 text-white" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
               </svg>
             </div>
-            <p className="text-teal-400 text-xs font-semibold tracking-[0.2em] uppercase mb-1">
+            <p className="text-[#0A3D91] text-xs font-bold tracking-[0.2em] uppercase mb-1">
               Anjani Medical
             </p>
-            <h1 className="text-white text-xl font-bold tracking-tight">
+            <h1 className="text-[#111827] text-xl font-bold tracking-tight">
               Staff Task Command Center
             </h1>
             <p className="text-slate-400 text-sm mt-1">Sign in to continue</p>
@@ -56,7 +55,7 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Username */}
             <div>
-              <label className="block text-slate-300 text-xs font-semibold mb-1.5 tracking-wide uppercase">
+              <label className="block text-slate-600 text-xs font-semibold mb-1.5 tracking-wide uppercase">
                 Username
               </label>
               <input
@@ -66,13 +65,13 @@ export default function Login() {
                 placeholder="Enter your username"
                 autoComplete="username"
                 required
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-slate-100 text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/60 transition-all"
+                className="w-full bg-white border border-[#D1DCF0] rounded-xl px-4 py-3 text-[#111827] text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A3D91]/20 focus:border-[#0A3D91] transition-all"
               />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-slate-300 text-xs font-semibold mb-1.5 tracking-wide uppercase">
+              <label className="block text-slate-600 text-xs font-semibold mb-1.5 tracking-wide uppercase">
                 Password
               </label>
               <div className="relative">
@@ -83,16 +82,16 @@ export default function Login() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 pr-11 text-slate-100 text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/60 transition-all"
+                  className="w-full bg-white border border-[#D1DCF0] rounded-xl px-4 py-3 pr-11 text-[#111827] text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0A3D91]/20 focus:border-[#0A3D91] transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPwd((v) => !v)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                   tabIndex={-1}
                 >
                   {showPwd ? (
-                    <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                     </svg>
                   ) : (
@@ -107,7 +106,7 @@ export default function Login() {
 
             {/* Error */}
             {error && (
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/25 text-red-400 text-sm">
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
                 <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10" />
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
@@ -120,7 +119,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-teal-500 hover:bg-teal-400 disabled:bg-teal-500/50 text-white font-semibold py-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 mt-2 shadow-lg shadow-teal-500/20"
+              className="w-full bg-[#0A3D91] hover:bg-[#0057D9] disabled:bg-[#0A3D91]/50 text-white font-semibold py-3 rounded-xl transition-all duration-150 flex items-center justify-center gap-2 mt-2 shadow-sm"
             >
               {loading ? (
                 <>
@@ -134,7 +133,7 @@ export default function Login() {
           </form>
 
           {/* Hint */}
-          <p className="text-slate-700 text-[11px] text-center mt-6">
+          <p className="text-slate-400 text-[11px] text-center mt-6">
             Local authentication · Anjani Medical Internal System
           </p>
         </div>

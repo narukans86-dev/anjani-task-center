@@ -45,13 +45,13 @@ export default function Reports() {
         {REPORT_CARDS.map((card) => (
           <div key={card.title} className="card-glass rounded-2xl p-5 flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-slate-200 text-sm font-semibold leading-snug">{card.title}</p>
-              <span className="shrink-0 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700/60 text-slate-500 text-[10px] font-medium">
+              <p className="text-[#111827] text-sm font-semibold leading-snug">{card.title}</p>
+              <span className="shrink-0 px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-medium">
                 {card.badge}
               </span>
             </div>
             <p className="text-slate-500 text-xs leading-relaxed">{card.description}</p>
-            <div className="mt-auto h-1 rounded-full bg-slate-800">
+            <div className="mt-auto h-1 rounded-full bg-slate-100">
               <div className="w-0 h-full rounded-full bg-teal-500/40" />
             </div>
           </div>

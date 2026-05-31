@@ -3,6 +3,22 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --anjani-blue:       #0A3D91;
+    --anjani-blue-light: #0057D9;
+    --bg-app:            #F0F4FF;
+    --bg-card:           #FFFFFF;
+    --bg-sidebar:        #FFFFFF;
+    --border:            #D1DCF0;
+    --text-primary:      #111827;
+    --text-secondary:    #4B5563;
+    --text-muted:        #94A3B8;
+    --teal-accent:       #0EA5E9;
+    --success:           #10B981;
+    --warning:           #F59E0B;
+    --danger:            #EF4444;
+  }
+
   * {
     box-sizing: border-box;
   }
@@ -16,28 +32,26 @@
     margin: 0;
     padding: 0;
     font-family: 'Inter', system-ui, sans-serif;
-    background-color: #020817;
-    color: #f8fafc;
+    background-color: #F0F4FF;
+    color: #111827;
   }
 }
 
 @layer utilities {
   .bg-grid-slate {
     background-image:
-      linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px),
-      linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+      linear-gradient(rgba(161, 179, 220, 0.15) 1px, transparent 1px),
+      linear-gradient(to right, rgba(161, 179, 220, 0.15) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
   .glow-teal {
-    box-shadow: 0 0 40px rgba(20, 184, 166, 0.12), 0 0 80px rgba(20, 184, 166, 0.06);
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.12), 0 0 40px rgba(14, 165, 233, 0.06);
   }
 
   .card-glass {
-    background: rgba(15, 23, 42, 0.85);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(51, 65, 85, 0.8);
+    background: #FFFFFF;
+    border: 1px solid #D1DCF0;
   }
 
   .toast-in {

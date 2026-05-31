@@ -38,9 +38,9 @@ function CompletionBar({ pct }) {
     <div>
       <div className="flex justify-between text-xs mb-1">
         <span className="text-slate-500">Task completion</span>
-        <span className="text-slate-300 font-medium tabular-nums">{pct}%</span>
+        <span className="text-slate-600 font-medium tabular-nums">{pct}%</span>
       </div>
-      <div className="h-1.5 bg-slate-700/60 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-blue-100 rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${pct}%`, background: barColor }}
@@ -50,6 +50,9 @@ function CompletionBar({ pct }) {
   )
 }
 
+const inputCls =
+  'w-full bg-white border border-[#D1DCF0] rounded-lg px-3 py-2 text-[#111827] text-sm placeholder-slate-400 focus:outline-none focus:border-[#0A3D91] focus:ring-2 focus:ring-[#0A3D91]/10'
+
 function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
   const handle = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }))
 
@@ -58,16 +61,14 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
-  const inputCls =
-    'w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:outline-none focus:border-teal-500/60'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative card-glass rounded-2xl p-6 w-full max-w-md shadow-2xl">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl border border-[#D1DCF0]">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-white font-semibold text-lg">{title}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+          <h3 className="text-[#111827] font-semibold text-lg">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -76,34 +77,24 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
 
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Full Name *</label>
-            <input
-              value={form.name}
-              onChange={handle('name')}
-              placeholder="e.g. Rajesh Kumar"
-              className={inputCls}
-            />
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Full Name *</label>
+            <input value={form.name} onChange={handle('name')} placeholder="e.g. Rajesh Kumar" className={inputCls} />
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Role *</label>
-            <input
-              value={form.role}
-              onChange={handle('role')}
-              placeholder="e.g. Pharmacist"
-              className={inputCls}
-            />
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Role *</label>
+            <input value={form.role} onChange={handle('role')} placeholder="e.g. Pharmacist" className={inputCls} />
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Department</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Department</label>
             <select value={form.department} onChange={handle('department')} className={inputCls}>
-              <option value="">— Select department —</option>
+              <option value="">-- Select department --</option>
               {DEPARTMENTS.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Mobile Number *</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Mobile Number *</label>
             <input
               type="tel"
               value={form.mobile_number}
@@ -113,7 +104,7 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
             />
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Email</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Email</label>
             <input
               type="email"
               value={form.email}
@@ -123,7 +114,7 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
             />
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">WhatsApp Number</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">WhatsApp Number</label>
             <input
               type="tel"
               value={form.whatsapp_number}
@@ -133,7 +124,7 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
             />
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Notification Preference</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Notification Preference</label>
             <select value={form.notification_preference} onChange={handle('notification_preference')} className={inputCls}>
               {NOTIFICATION_PREFS.map((p) => (
                 <option key={p} value={p}>{p}</option>
@@ -141,7 +132,7 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
             </select>
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Color</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Color</label>
             <div className="flex gap-2.5">
               {PRESET_COLORS.map((c) => (
                 <button
@@ -159,7 +150,7 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
             </div>
           </div>
           <div>
-            <label className="text-slate-400 text-xs font-medium block mb-1.5">Status</label>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Status</label>
             <select value={form.status} onChange={handle('status')} className={inputCls}>
               <option value="active">Active</option>
               <option value="inactive">Inactive</option>
@@ -170,16 +161,16 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 text-sm hover:bg-slate-800 transition-colors"
+            className="flex-1 px-4 py-2 rounded-lg border border-[#D1DCF0] text-slate-600 text-sm hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onSave}
             disabled={saving || !form.name.trim() || !form.role.trim() || !form.mobile_number.trim()}
-            className="flex-1 px-4 py-2 rounded-lg bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
+            className="flex-1 px-4 py-2 rounded-lg bg-[#0A3D91] hover:bg-[#0057D9] disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
           >
-            {saving ? 'Saving…' : title.startsWith('Edit') ? 'Update' : 'Add Staff'}
+            {saving ? 'Saving...' : title.startsWith('Edit') ? 'Update' : 'Add Staff'}
           </button>
         </div>
       </div>
@@ -196,26 +187,26 @@ function ConfirmDeactivate({ name, onConfirm, onCancel, saving }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative card-glass rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-[#D1DCF0]">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" strokeWidth="2">
+          <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 24 24" className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
           <div>
-            <p className="text-white font-semibold text-sm">Deactivate Staff Member</p>
-            <p className="text-slate-400 text-xs">This is reversible — task history is preserved.</p>
+            <p className="text-[#111827] font-semibold text-sm">Deactivate Staff Member</p>
+            <p className="text-slate-400 text-xs">This is reversible -- task history is preserved.</p>
           </div>
         </div>
-        <p className="text-slate-300 text-sm mb-5">
-          Set <span className="text-white font-semibold">{name}</span> to inactive?
+        <p className="text-slate-600 text-sm mb-5">
+          Set <span className="text-[#111827] font-semibold">{name}</span> to inactive?
         </p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 px-4 py-2 rounded-lg border border-slate-700 text-slate-300 text-sm hover:bg-slate-800 transition-colors"
+            className="flex-1 px-4 py-2 rounded-lg border border-[#D1DCF0] text-slate-600 text-sm hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
@@ -224,7 +215,7 @@ function ConfirmDeactivate({ name, onConfirm, onCancel, saving }) {
             disabled={saving}
             className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-400 disabled:opacity-50 text-white text-sm font-semibold transition-colors"
           >
-            {saving ? 'Deactivating…' : 'Deactivate'}
+            {saving ? 'Deactivating...' : 'Deactivate'}
           </button>
         </div>
       </div>
@@ -345,16 +336,15 @@ export default function Staff() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight mb-1">Staff Management</h2>
-          <p className="text-slate-400 text-sm">Manage team members, roles, and assignments.</p>
+          <h2 className="text-2xl font-bold text-[#111827] tracking-tight mb-1">Staff Management</h2>
+          <p className="text-slate-500 text-sm">Manage team members, roles, and assignments.</p>
         </div>
         {hasPermission('manage_staff') && (
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2 bg-teal-500 hover:bg-teal-400 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#0A3D91] hover:bg-[#0057D9] text-white text-sm font-semibold rounded-lg transition-colors"
           >
             <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -366,14 +356,14 @@ export default function Staff() {
 
       {loading && (
         <div className="flex items-center justify-center py-20">
-          <div className="w-8 h-8 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-[#0A3D91]/20 border-t-[#0A3D91] rounded-full animate-spin" />
         </div>
       )}
 
       {error && (
-        <div className="card-glass rounded-2xl p-5 border-l-2 border-l-red-500/60 mb-6">
-          <p className="text-red-400 text-sm">Failed to load staff: {error}</p>
-          <button onClick={load} className="text-teal-400 text-xs mt-2 hover:underline">
+        <div className="bg-white rounded-2xl p-5 border border-[#D1DCF0] border-l-4 border-l-red-500 mb-6">
+          <p className="text-red-500 text-sm">Failed to load staff: {error}</p>
+          <button onClick={load} className="text-[#0A3D91] text-xs mt-2 hover:underline">
             Retry
           </button>
         </div>
@@ -382,7 +372,7 @@ export default function Staff() {
       {!loading && !error && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {staff.length === 0 ? (
-            <div className="col-span-full text-center py-20 text-slate-500 text-sm">
+            <div className="col-span-full text-center py-20 text-slate-400 text-sm">
               No staff members yet. Click "Add Staff" to get started.
             </div>
           ) : (
@@ -390,13 +380,13 @@ export default function Staff() {
               const pct = completion(s.id)
               const isActive = s.status === 'active'
               return (
-                <div key={s.id} className={`card-glass rounded-2xl p-5 flex flex-col gap-4 ${!isActive ? 'opacity-60' : ''}`}>
+                <div key={s.id} className={`bg-white rounded-2xl p-5 flex flex-col gap-4 border border-[#D1DCF0] shadow-sm ${!isActive ? 'opacity-60' : ''}`}>
                   <div className="flex items-start gap-3">
                     <Avatar name={s.name} color={s.color || '#3b82f6'} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-sm truncate">{s.name}</p>
-                      <p className="text-slate-400 text-xs truncate">
-                        {[s.role, s.department].filter(Boolean).join(' · ')}
+                      <p className="text-[#111827] font-semibold text-sm truncate">{s.name}</p>
+                      <p className="text-slate-500 text-xs truncate">
+                        {[s.role, s.department].filter(Boolean).join(' - ')}
                       </p>
                       {s.mobile_number && (
                         <p className="text-slate-500 text-xs mt-0.5">📱 {s.mobile_number}</p>
@@ -410,8 +400,8 @@ export default function Staff() {
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
                         isActive
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                          : 'bg-red-50 text-red-500 border border-red-200'
                       }`}
                     >
                       {isActive ? 'Active' : 'Inactive'}
@@ -425,7 +415,7 @@ export default function Staff() {
                       {hasPermission('manage_staff') && (
                         <button
                           onClick={() => openEdit(s)}
-                          className="flex-1 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs hover:bg-slate-800 hover:text-white transition-colors"
+                          className="flex-1 py-1.5 rounded-lg border border-[#D1DCF0] text-slate-600 text-xs hover:bg-blue-50 hover:text-[#0A3D91] transition-colors"
                         >
                           Edit
                         </button>
@@ -434,7 +424,7 @@ export default function Staff() {
                         isActive ? (
                           <button
                             onClick={() => setDeactivateTarget(s)}
-                            className="flex-1 py-1.5 rounded-lg border border-red-400 text-red-400 text-xs hover:bg-red-400/10 transition-colors"
+                            className="flex-1 py-1.5 rounded-lg border border-red-200 text-red-500 text-xs hover:bg-red-50 transition-colors"
                           >
                             Deactivate
                           </button>
@@ -442,7 +432,7 @@ export default function Staff() {
                           <button
                             onClick={() => handleToggleStatus(s)}
                             disabled={saving}
-                            className="flex-1 py-1.5 rounded-lg border border-emerald-400 text-emerald-400 text-xs hover:bg-emerald-400/10 transition-colors disabled:opacity-50"
+                            className="flex-1 py-1.5 rounded-lg border border-emerald-200 text-emerald-600 text-xs hover:bg-emerald-50 transition-colors disabled:opacity-50"
                           >
                             Activate
                           </button>
