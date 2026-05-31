@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { getTodayTasks, getTaskStats, getStaff, getTasks, updateTaskStatus } from '../services/api'
+import { useNavigate, Link } from 'react-router-dom'
+import { getTodayTasks, getTaskStats, getStaff, getTasks, updateTaskStatus, getChecklistStats } from '../services/api'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
+import { generateTaskNotifications } from '../utils/notificationGenerator'
 
 const PRIORITY_BORDER = {
   critical: '#ef4444',
@@ -127,13 +128,14 @@ export default function Dashboard() {
   const { user } = useAuth()
   const { toasts, add: toast, remove: removeToast } = useToast()
 
-  const [todayTasks, setTodayTasks]     = useState([])
-  const [stats, setStats]               = useState(null)
-  const [staffList, setStaffList]       = useState([])
+  const [todayTasks, setTodayTasks]       = useState([])
+  const [stats, setStats]                 = useState(null)
+  const [staffList, setStaffList]         = useState([])
   const [criticalTasks, setCriticalTasks] = useState([])
-  const [allTasks, setAllTasks]         = useState([])
-  const [loading, setLoading]           = useState(true)
-  const [completing, setCompleting]     = useState(null)
+  const [allTasks, setAllTasks]           = useState([])
+  const [checklistStats, setChecklistStats] = useState(null)
+  const [loading, setLoading]             = useState(true)
+  const [completing, setCompleting]       = useState(null)
 
   const [calDate, setCalDate] = useState(() => {
     const d = new Date()
@@ -142,18 +144,21 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [todayData, statsData, staffData, critData, allData] = await Promise.all([
+      const [todayData, statsData, staffData, critData, allData, clStats] = await Promise.all([
         getTodayTasks(),
         getTaskStats(),
         getStaff(),
         getTasks({ priority: 'critical', status: 'pending' }),
         getTasks(),
+        getChecklistStats(),
       ])
       setTodayTasks(todayData)
       setStats(statsData)
       setStaffList(staffData)
       setCriticalTasks(critData)
       setAllTasks(allData)
+      setChecklistStats(clStats)
+      generateTaskNotifications(todayData)
     } catch {
       // silently retain previous data on background refresh
     } finally {
@@ -291,6 +296,57 @@ export default function Dashboard() {
         <StatCard label="Completed"          value={todayCompleted} color="emerald" icon={CheckIcon} loading={loading} />
         <StatCard label="Pending"            value={todayPending}   color="amber"   icon={ClockIcon} loading={loading} />
         <StatCard label="Delayed"            value={todayDelayed}   color="red"     icon={WarnIcon}  loading={loading} />
+      </div>
+
+      {/* ── Checklist Summary Card ───────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl p-5 border border-[#D1DCF0] shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-[#111827] font-semibold">Today's Checklist Status</h3>
+          <Link
+            to="/checklist"
+            className="text-xs text-[#0A3D91] hover:underline font-medium flex items-center gap-1"
+          >
+            View Full Checklist
+            <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+        {loading || !checklistStats ? (
+          <div className="space-y-3">
+            <div className="h-8 bg-slate-100 rounded-lg animate-pulse" />
+            <div className="h-8 bg-slate-100 rounded-lg animate-pulse" />
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {[
+              { label: 'Opening', emoji: '🌅', data: checklistStats.opening, color: '#f59e0b' },
+              { label: 'Closing', emoji: '🌙', data: checklistStats.closing, color: '#6366f1' },
+            ].map(({ label, emoji, data, color }) => {
+              const pct = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0
+              const done = pct === 100
+              return (
+                <div key={label}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm text-slate-600 font-medium flex items-center gap-1.5">
+                      <span>{emoji}</span> {label}
+                    </span>
+                    <span className="text-xs tabular-nums" style={{ color: done ? '#10b981' : color }}>
+                      {data.completed}/{data.total}
+                      {done && <span className="ml-1">✓</span>}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, backgroundColor: done ? '#10b981' : color }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Row 2: Today's Tasks + Staff Progress ────────────────────────── */}

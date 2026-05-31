@@ -10,6 +10,7 @@ import Staff from './pages/Staff'
 import Calendar from './pages/Calendar'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import Checklist from './pages/Checklist'
 
 export default function App() {
   return (
@@ -30,6 +31,7 @@ export default function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="tasks"     element={<Tasks />} />
+            <Route path="checklist" element={<Checklist />} />
             <Route path="staff"     element={<Staff />} />
             <Route path="calendar"  element={<Calendar />} />
             <Route path="reports"   element={<Reports />} />
