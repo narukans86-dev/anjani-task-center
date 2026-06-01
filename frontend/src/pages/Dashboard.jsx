@@ -7,7 +7,14 @@ import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
 import { generateTaskNotifications } from '../utils/notificationGenerator'
 import { DAILY_ROUTINE_STAFF, getDailyRoutineSummary, readDailyRoutineState, routineProgressFor } from '../data/dailyRoutine'
-import { calculateCommission, calculateSalesProgress, getStaffSalesTargets } from '../data/salesTargets'
+import {
+  calculateCommission,
+  calculateItemCommission,
+  calculateItemProgress,
+  calculateSalesProgress,
+  calculateStaffItemCommission,
+  getStaffSalesTargets,
+} from '../data/salesTargets'
 
 const BRAND_BLUE = '#0A3D91'
 
@@ -155,6 +162,13 @@ function leagueStatus(score) {
 
 function formatMoney(value) {
   return `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`
+}
+
+function productPushStatusStyle(status) {
+  if (status === 'Champion') return 'bg-emerald-50 text-emerald-700 border-emerald-200'
+  if (status === 'Target Hit') return 'bg-blue-50 text-blue-700 border-blue-200'
+  if (status === 'In Progress') return 'bg-amber-50 text-amber-700 border-amber-200'
+  return 'bg-slate-100 text-slate-600 border-slate-200'
 }
 
 function Icon({ name, className = 'w-5 h-5' }) {
@@ -425,7 +439,7 @@ function PerformanceLeague({ loading, rows, userRole, myStaffId }) {
         subtitle={
           userRole === 'staff'
             ? 'Your rank and today\'s top performers.'
-            : 'Weighted by sales progress, daily routine, and task completion.'
+            : 'Weighted by sales progress, daily routine, tasks, and assigned product pushes.'
         }
         action={
           userRole === 'staff' && ownRank && (
@@ -463,16 +477,17 @@ function PerformanceLeague({ loading, rows, userRole, myStaffId }) {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex-1">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 lg:flex-1">
                       {[
                         ['Sales', row.salesProgressPercent],
                         ['Routine', row.routineCompletionPercent],
                         ['Tasks', row.taskCompletionPercent],
+                        ['Products', row.productPushScore === null ? 'No target' : `${row.productPushScore}%`],
                         ['Overall', row.overallScore],
                       ].map(([label, value]) => (
                         <div key={label} className="rounded-xl bg-white border border-slate-100 px-3 py-2">
                           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
-                          <p className="mt-0.5 text-sm font-bold tabular-nums text-[#111827]">{value}%</p>
+                          <p className="mt-0.5 text-sm font-bold tabular-nums text-[#111827]">{typeof value === 'number' ? `${value}%` : value}</p>
                         </div>
                       ))}
                     </div>
@@ -480,7 +495,7 @@ function PerformanceLeague({ loading, rows, userRole, myStaffId }) {
                     <div className="flex flex-wrap items-center justify-between gap-2 lg:w-52 lg:justify-end">
                       <div className="text-left lg:text-right">
                         <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Est. Commission</p>
-                        <p className="text-sm font-bold text-[#111827] tabular-nums">{formatMoney(row.estimatedCommission)}</p>
+                        <p className="text-sm font-bold text-[#111827] tabular-nums">{formatMoney(row.estimatedCommission + row.estimatedItemCommission)}</p>
                       </div>
                       <TaskBadge className={`border ${status.cls}`}>{status.label}</TaskBadge>
                     </div>
@@ -495,6 +510,152 @@ function PerformanceLeague({ loading, rows, userRole, myStaffId }) {
                 </div>
               )
             })
+        }
+      </div>
+    </Card>
+  )
+}
+
+function ProductPushItemCard({ item, compact = false }) {
+  const progress = calculateItemProgress(item)
+  const commission = calculateItemCommission(item)
+
+  return (
+    <div className="rounded-xl border border-[#D1DCF0] bg-white p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-[#111827]">{item.itemName}</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            {progress.hasQtyTarget ? `${item.achievedQty}/${item.targetQty} units` : 'Quantity not set'}
+            {progress.hasValueTarget ? ` · ${formatMoney(item.achievedValue)}/${formatMoney(item.targetValue)}` : ''}
+          </p>
+        </div>
+        <TaskBadge className={`border ${productPushStatusStyle(progress.status)}`}>{progress.status}</TaskBadge>
+      </div>
+      <div className="mt-3 h-2 rounded-full bg-slate-100">
+        <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.min(progress.progressPercent, 100)}%` }} />
+      </div>
+      <div className={`mt-3 grid gap-2 ${compact ? 'grid-cols-2' : 'grid-cols-2 sm:grid-cols-4'}`}>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Progress</p>
+          <p className="text-sm font-bold text-[#111827]">{progress.progressPercent}%</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Remaining</p>
+          <p className="text-sm font-bold text-[#111827]">
+            {progress.hasQtyTarget ? `${progress.remainingQty} units` : formatMoney(progress.remainingValue)}
+          </p>
+        </div>
+        {!compact && (
+          <>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Value Left</p>
+              <p className="text-sm font-bold text-[#111827]">{formatMoney(progress.remainingValue)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Earning</p>
+              <p className="text-sm font-bold text-emerald-700">{formatMoney(commission.reward)}</p>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function StaffProductPushCard({ staffTarget }) {
+  const activeItems = (staffTarget?.itemTargets || []).filter((item) => item.isActive)
+  const salesProgress = calculateSalesProgress(staffTarget?.todaySalesAchieved, staffTarget?.dailySalesTarget)
+  const routineState = readDailyRoutineState()
+  const routineStaff = DAILY_ROUTINE_STAFF.find((staff) => staff.name === staffTarget?.staffName)
+  const routineCompletionPercent = routineStaff
+    ? routineProgressFor(routineStaff, routineState.checks).percent
+    : 100
+  const salesCommission = calculateCommission(
+    salesProgress,
+    staffTarget?.commissionRule,
+    routineCompletionPercent,
+    staffTarget?.minimumRoutineCompletionPercent ?? 70
+  ).reward
+  const itemCommission = calculateStaffItemCommission(staffTarget || {})
+
+  return (
+    <Card className="p-5">
+      <SectionHeader
+        title="Product Push Targets"
+        subtitle="Assigned items to focus on today and this month."
+        action={<TaskBadge className="bg-emerald-50 text-emerald-700 border border-emerald-200">{formatMoney(itemCommission)} item earning</TaskBadge>}
+      />
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#0A3D91]">Sales + Item Earning</p>
+          <p className="mt-1 text-xl font-bold text-[#111827]">{formatMoney(salesCommission + itemCommission)}</p>
+        </div>
+        <div className="rounded-xl border border-teal-100 bg-teal-50/60 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-teal-700">Active Product Targets</p>
+          <p className="mt-1 text-xl font-bold text-[#111827]">{activeItems.length}</p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-3">
+        {activeItems.length === 0
+          ? <EmptyState icon="spark" title="No product push targets assigned" />
+          : activeItems.map((item) => <ProductPushItemCard key={item.id} item={item} />)
+        }
+      </div>
+    </Card>
+  )
+}
+
+function ProductPushSnapshot({ loading, items, liability }) {
+  const topItems = items.slice(0, 3)
+  const needsPush = items.filter((item) => item.progressPercent < 50).length
+  const topItem = topItems[0]
+
+  return (
+    <Card className="p-5">
+      <SectionHeader
+        title="Product Push Snapshot"
+        subtitle="Compact view of item-wise targets and estimated item commission."
+        action={<TaskBadge className="bg-teal-50 text-teal-700 border border-teal-200">{formatMoney(liability)} liability</TaskBadge>}
+      />
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#0A3D91]">Top Item Pusher</p>
+          <p className="mt-1 truncate text-sm font-bold text-[#111827]">{topItem ? topItem.staffName : 'No active target'}</p>
+          {topItem && <p className="text-[11px] text-slate-500 truncate">{topItem.item.itemName}</p>}
+        </div>
+        <div className="rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">Items Needing Push</p>
+          <p className="mt-1 text-xl font-bold text-[#111827]">{needsPush}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Active Item Targets</p>
+          <p className="mt-1 text-xl font-bold text-[#111827]">{items.length}</p>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-3">
+        {loading
+          ? [1, 2, 3].map((i) => <div key={i} className="h-28 rounded-xl bg-slate-100 animate-pulse" />)
+          : topItems.length === 0
+          ? <div className="lg:col-span-3"><EmptyState icon="spark" title="No active product push targets" /></div>
+          : topItems.map((entry) => (
+              <div key={`${entry.staffId}-${entry.item.id}`} className="rounded-xl border border-[#D1DCF0] bg-slate-50/60 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[#111827]">{entry.item.itemName}</p>
+                    <p className="truncate text-[11px] text-slate-500">{entry.staffName}</p>
+                  </div>
+                  <TaskBadge className={`border ${productPushStatusStyle(entry.status)}`}>{entry.status}</TaskBadge>
+                </div>
+                <div className="mt-3 h-2 rounded-full bg-white">
+                  <div className="h-full rounded-full bg-teal-500" style={{ width: `${Math.min(entry.progressPercent, 100)}%` }} />
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-[#111827]">{entry.progressPercent}%</span>
+                  <span className="font-semibold text-emerald-700">{formatMoney(entry.estimatedItemCommission)}</span>
+                </div>
+              </div>
+            ))
         }
       </div>
     </Card>
@@ -791,6 +952,8 @@ export default function Dashboard() {
     return staffList.filter((staff) => staff.status !== 'inactive')
   }, [staffList])
 
+  const salesTargets = useMemo(() => getStaffSalesTargets(), [])
+
   const staffPerformance = useMemo(() => activeStaffList.map((staff) => {
     const assigned = allTasks.filter((task) => String(task.assigned_to) === String(staff.id))
     const completed = assigned.filter((task) => task.status === 'completed').length
@@ -804,7 +967,7 @@ export default function Dashboard() {
       staff.name,
       routineProgressFor(staff, routineState.checks).percent,
     ]))
-    const salesByStaffId = new Map(getStaffSalesTargets().map((target) => [String(target.staffId), target]))
+    const salesByStaffId = new Map(salesTargets.map((target) => [String(target.staffId), target]))
     const taskByStaffId = new Map(staffPerformance.map((staff) => [String(staff.id), staff.percent]))
 
     return activeStaffList
@@ -817,14 +980,24 @@ export default function Dashboard() {
         const salesScore = Math.min(salesProgressPercent, 120)
         const routineCompletionPercent = routineByName.get(staff.name) ?? 0
         const taskCompletionPercent = taskByStaffId.get(String(staff.id)) ?? 0
+        const activeItemTargets = (salesTarget?.itemTargets || []).filter((item) => item.isActive)
+        const productPushScore = activeItemTargets.length
+          ? Math.round(activeItemTargets.reduce((sum, item) => (
+              sum + Math.min(calculateItemProgress(item).progressPercent, 120)
+            ), 0) / activeItemTargets.length)
+          : null
         const commission = calculateCommission(
           salesProgressPercent,
           salesTarget?.commissionRule,
           routineCompletionPercent,
           salesTarget?.minimumRoutineCompletionPercent ?? 70
         )
+        const productScoreForRanking = productPushScore === null ? salesScore : productPushScore
         const overallScore = Math.round(
-          (salesScore * 0.5) + (routineCompletionPercent * 0.3) + (taskCompletionPercent * 0.2)
+          (salesScore * 0.45) +
+          (routineCompletionPercent * 0.25) +
+          (taskCompletionPercent * 0.15) +
+          (productScoreForRanking * 0.15)
         )
 
         return {
@@ -834,13 +1007,40 @@ export default function Dashboard() {
           salesProgressPercent,
           routineCompletionPercent,
           taskCompletionPercent,
+          productPushScore,
           estimatedCommission: commission.reward,
+          estimatedItemCommission: calculateStaffItemCommission(salesTarget || {}),
           overallScore,
         }
       })
       .sort((a, b) => b.overallScore - a.overallScore || b.salesProgressPercent - a.salesProgressPercent || a.staffName.localeCompare(b.staffName))
       .map((row, index) => ({ ...row, rank: index + 1 }))
-  }, [activeStaffList, staffPerformance])
+  }, [activeStaffList, salesTargets, staffPerformance])
+
+  const productPushEntries = useMemo(() => salesTargets
+    .flatMap((staffTarget) => (staffTarget.itemTargets || [])
+      .filter((item) => item.isActive)
+      .map((item) => {
+        const progress = calculateItemProgress(item)
+        const commission = calculateItemCommission(item)
+        return {
+          staffId: staffTarget.staffId,
+          staffName: staffTarget.staffName,
+          role: staffTarget.role,
+          item,
+          ...progress,
+          estimatedItemCommission: commission.reward,
+        }
+      }))
+    .sort((a, b) => b.progressPercent - a.progressPercent || b.estimatedItemCommission - a.estimatedItemCommission || a.item.itemName.localeCompare(b.item.itemName)), [salesTargets])
+
+  const itemCommissionLiability = useMemo(() => salesTargets
+    .reduce((sum, target) => sum + calculateStaffItemCommission(target), 0), [salesTargets])
+
+  const mySalesTarget = useMemo(() => {
+    if (myStaffId === null) return null
+    return salesTargets.find((target) => String(target.staffId) === String(myStaffId)) ?? null
+  }, [myStaffId, salesTargets])
 
   const urgentTasks = useMemo(() => visibleAllTasks
     .filter((task) => isOpenTask(task) && (isHighPriority(task) || isOverdue(task, today)))
@@ -904,6 +1104,10 @@ export default function Dashboard() {
 
       <DailyRoutineCard summary={routineSummary} />
 
+      {user?.role === 'staff' && (
+        <StaffProductPushCard staffTarget={mySalesTarget} />
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <StatCard label="Total Tasks Today" value={todayTotal} color="blue" icon="clipboard" loading={loading} />
         <StatCard label="Completed Today" value={todayCompleted} color="emerald" icon="check" loading={loading} />
@@ -930,6 +1134,14 @@ export default function Dashboard() {
         userRole={user?.role}
         myStaffId={myStaffId}
       />
+
+      {(user?.role === 'admin' || user?.role === 'manager') && (
+        <ProductPushSnapshot
+          loading={loading}
+          items={productPushEntries}
+          liability={itemCommissionLiability}
+        />
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <Card className={`${user?.role === 'staff' ? 'xl:col-span-5' : 'xl:col-span-3'} p-5`}>

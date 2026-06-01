@@ -6,6 +6,30 @@ export const DEFAULT_COMMISSION_RULE = [
   { minPercent: 120, reward: 500, label: 'Champion' },
 ]
 
+export const PRODUCT_PUSH_PRESETS = [
+  'BP Machine',
+  'Sugar Machine / Glucometer',
+  'Glucometer Strips',
+  'Thermometer',
+  'Nebulizer',
+  'Protein Powder',
+  'Cosmetics',
+  'Chronic Refill Pack',
+  'Custom Item',
+]
+
+export const DEFAULT_ITEM_TARGET = {
+  id: 'custom-item',
+  itemName: 'Custom Item',
+  targetQty: 0,
+  achievedQty: 0,
+  targetValue: 0,
+  achievedValue: 0,
+  rewardPerUnit: 0,
+  bonusOnTarget: 0,
+  isActive: true,
+}
+
 export const DEFAULT_STAFF_SALES_TARGETS = [
   {
     staffId: 1,
@@ -16,6 +40,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
     todaySalesAchieved: 0,
     monthlySalesAchieved: 0,
     commissionRule: DEFAULT_COMMISSION_RULE,
+    itemTargets: [],
     minimumRoutineCompletionPercent: 70,
     isActive: true,
   },
@@ -28,6 +53,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
     todaySalesAchieved: 0,
     monthlySalesAchieved: 0,
     commissionRule: DEFAULT_COMMISSION_RULE,
+    itemTargets: [],
     minimumRoutineCompletionPercent: 70,
     isActive: true,
   },
@@ -40,6 +66,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
     todaySalesAchieved: 0,
     monthlySalesAchieved: 0,
     commissionRule: DEFAULT_COMMISSION_RULE,
+    itemTargets: [],
     minimumRoutineCompletionPercent: 70,
     isActive: true,
   },
@@ -52,6 +79,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
     todaySalesAchieved: 0,
     monthlySalesAchieved: 0,
     commissionRule: DEFAULT_COMMISSION_RULE,
+    itemTargets: [],
     minimumRoutineCompletionPercent: 70,
     isActive: true,
   },
@@ -64,6 +92,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
     todaySalesAchieved: 0,
     monthlySalesAchieved: 0,
     commissionRule: DEFAULT_COMMISSION_RULE,
+    itemTargets: [],
     minimumRoutineCompletionPercent: 70,
     isActive: true,
   },
@@ -76,6 +105,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
     todaySalesAchieved: 0,
     monthlySalesAchieved: 0,
     commissionRule: DEFAULT_COMMISSION_RULE,
+    itemTargets: [],
     minimumRoutineCompletionPercent: 70,
     isActive: true,
   },
@@ -85,6 +115,7 @@ function cloneDefaults() {
   return DEFAULT_STAFF_SALES_TARGETS.map((target) => ({
     ...target,
     commissionRule: target.commissionRule.map((tier) => ({ ...tier })),
+    itemTargets: target.itemTargets.map((item) => ({ ...item })),
   }))
 }
 
@@ -105,6 +136,29 @@ function normalizeCommissionRule(rule) {
     .sort((a, b) => a.minPercent - b.minPercent)
 }
 
+function slugify(value) {
+  return String(value || 'custom-item')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'custom-item'
+}
+
+function normalizeItemTarget(itemTarget = {}) {
+  const itemName = String(itemTarget.itemName || DEFAULT_ITEM_TARGET.itemName).trim() || DEFAULT_ITEM_TARGET.itemName
+  return {
+    id: String(itemTarget.id || slugify(itemName)).trim(),
+    itemName,
+    targetQty: Math.max(0, safeNumber(itemTarget.targetQty)),
+    achievedQty: Math.max(0, safeNumber(itemTarget.achievedQty)),
+    targetValue: Math.max(0, safeNumber(itemTarget.targetValue)),
+    achievedValue: Math.max(0, safeNumber(itemTarget.achievedValue)),
+    rewardPerUnit: Math.max(0, safeNumber(itemTarget.rewardPerUnit)),
+    bonusOnTarget: Math.max(0, safeNumber(itemTarget.bonusOnTarget)),
+    isActive: itemTarget.isActive ?? true,
+  }
+}
+
 function normalizeTarget(target, fallback = {}) {
   return {
     staffId: safeNumber(target.staffId ?? fallback.staffId),
@@ -115,6 +169,9 @@ function normalizeTarget(target, fallback = {}) {
     todaySalesAchieved: Math.max(0, safeNumber(target.todaySalesAchieved ?? fallback.todaySalesAchieved)),
     monthlySalesAchieved: Math.max(0, safeNumber(target.monthlySalesAchieved ?? fallback.monthlySalesAchieved)),
     commissionRule: normalizeCommissionRule(target.commissionRule ?? fallback.commissionRule),
+    itemTargets: Array.isArray(target.itemTargets)
+      ? target.itemTargets.map(normalizeItemTarget)
+      : [],
     minimumRoutineCompletionPercent: Math.max(
       0,
       safeNumber(target.minimumRoutineCompletionPercent ?? fallback.minimumRoutineCompletionPercent ?? 70)
@@ -168,6 +225,59 @@ export function calculateRemainingSales(target, achieved) {
   return Math.max(0, safeNumber(target) - safeNumber(achieved))
 }
 
+export function calculateItemProgress(itemTarget = {}) {
+  const item = normalizeItemTarget(itemTarget)
+  const qtyProgress = item.targetQty > 0
+    ? Math.round((item.achievedQty / item.targetQty) * 100)
+    : null
+  const valueProgress = item.targetValue > 0
+    ? Math.round((item.achievedValue / item.targetValue) * 100)
+    : null
+  const activeProgress = [qtyProgress, valueProgress].filter((value) => value !== null)
+  const progressPercent = activeProgress.length
+    ? Math.max(0, Math.round(activeProgress.reduce((sum, value) => sum + value, 0) / activeProgress.length))
+    : 0
+
+  let status = 'Not Started'
+  if (progressPercent >= 120) status = 'Champion'
+  else if (progressPercent >= 100) status = 'Target Hit'
+  else if (progressPercent > 0) status = 'In Progress'
+
+  return {
+    qtyProgress,
+    valueProgress,
+    progressPercent,
+    remainingQty: Math.max(0, item.targetQty - item.achievedQty),
+    remainingValue: Math.max(0, item.targetValue - item.achievedValue),
+    hasQtyTarget: item.targetQty > 0,
+    hasValueTarget: item.targetValue > 0,
+    status,
+  }
+}
+
+export function calculateItemCommission(itemTarget = {}) {
+  const item = normalizeItemTarget(itemTarget)
+  const progress = calculateItemProgress(item)
+  const unitReward = item.rewardPerUnit * item.achievedQty
+  const targetHit = (
+    (progress.hasQtyTarget && item.achievedQty >= item.targetQty) ||
+    (progress.hasValueTarget && item.achievedValue >= item.targetValue)
+  )
+
+  return {
+    reward: unitReward + (targetHit ? item.bonusOnTarget : 0),
+    unitReward,
+    bonusReward: targetHit ? item.bonusOnTarget : 0,
+    targetHit,
+  }
+}
+
+export function calculateStaffItemCommission(staffTarget = {}) {
+  return (staffTarget.itemTargets || [])
+    .filter((item) => item.isActive)
+    .reduce((sum, item) => sum + calculateItemCommission(item).reward, 0)
+}
+
 export function calculateCommission(
   progressPercent,
   rule,
@@ -214,6 +324,7 @@ export function getTodayIncentiveSummary(routineCompletionByStaffId = {}) {
         routineCompletionPercent,
         remainingSales: calculateRemainingSales(target.dailySalesTarget, target.todaySalesAchieved),
         estimatedCommission: commission.reward,
+        estimatedItemCommission: calculateStaffItemCommission(target),
         commissionLabel: commission.label,
       }
     })
@@ -221,6 +332,7 @@ export function getTodayIncentiveSummary(routineCompletionByStaffId = {}) {
   const totalTarget = staffSummaries.reduce((sum, target) => sum + target.dailySalesTarget, 0)
   const totalAchieved = staffSummaries.reduce((sum, target) => sum + target.todaySalesAchieved, 0)
   const commissionLiability = staffSummaries.reduce((sum, target) => sum + target.estimatedCommission, 0)
+  const itemCommissionLiability = staffSummaries.reduce((sum, target) => sum + target.estimatedItemCommission, 0)
 
   return {
     staff: staffSummaries,
@@ -228,9 +340,36 @@ export function getTodayIncentiveSummary(routineCompletionByStaffId = {}) {
     totalAchieved,
     totalProgressPercent: calculateSalesProgress(totalAchieved, totalTarget),
     commissionLiability,
+    itemCommissionLiability,
+    combinedCommissionLiability: commissionLiability + itemCommissionLiability,
     staffOnTarget: staffSummaries.filter((target) => target.progressPercent >= 100).length,
     staffBelowMinimum: staffSummaries.filter((target) => target.progressPercent < 80).length,
   }
+}
+
+export function getActiveItemTargetsForStaff(staffId) {
+  const staffTarget = getStaffSalesTargets().find((target) => String(target.staffId) === String(staffId))
+  return (staffTarget?.itemTargets || []).filter((item) => item.isActive)
+}
+
+export function getTopProductPushers(limit = 3) {
+  return getStaffSalesTargets()
+    .flatMap((staffTarget) => (staffTarget.itemTargets || [])
+      .filter((item) => item.isActive)
+      .map((item) => {
+        const progress = calculateItemProgress(item)
+        const commission = calculateItemCommission(item)
+        return {
+          staffId: staffTarget.staffId,
+          staffName: staffTarget.staffName,
+          role: staffTarget.role,
+          item,
+          ...progress,
+          estimatedItemCommission: commission.reward,
+        }
+      }))
+    .sort((a, b) => b.progressPercent - a.progressPercent || b.estimatedItemCommission - a.estimatedItemCommission || a.item.itemName.localeCompare(b.item.itemName))
+    .slice(0, limit)
 }
 
 export { SALES_TARGETS_KEY }
