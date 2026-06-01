@@ -1,8 +1,20 @@
 const BASE = '/api'
 
+function getAuthToken() {
+  try {
+    const raw = localStorage.getItem('anjani_user')
+    return raw ? (JSON.parse(raw)?.token ?? null) : null
+  } catch { return null }
+}
+
 async function req(path, options = {}) {
+  const token = getAuthToken()
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
     ...options,
   })
   if (!res.ok) {
@@ -79,3 +91,10 @@ export const getDailyRoutineTemplates = (activeOnly = false, type = null) => {
 export const createDailyRoutineTemplate = (data) => req('/daily-routine/templates', { method: 'POST', body: JSON.stringify(data) })
 export const updateDailyRoutineTemplate = (id, data) => req(`/daily-routine/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteDailyRoutineTemplate = (id) => req(`/daily-routine/templates/${id}`, { method: 'DELETE' })
+
+// ── Users & Roles (admin) ──────────────────────────────────────────────────
+export const getUsers          = ()            => req('/users')
+export const createUser        = (data)        => req('/users', { method: 'POST', body: JSON.stringify(data) })
+export const updateUser        = (id, data)    => req(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const resetUserPassword = (id, pwd)     => req(`/users/${id}/reset-password`, { method: 'PATCH', body: JSON.stringify({ newPassword: pwd }) })
+export const setUserStatus     = (id, status)  => req(`/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) })

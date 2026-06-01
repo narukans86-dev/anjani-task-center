@@ -111,42 +111,270 @@ anjani-task-center/
             └── AccessDenied.jsx
 ```
 
-## Deployment
+## Deployment (Level 2 — Windows Server + PM2 + Cloudflare Tunnel)
 
-### Local Production Build & Preview
+### Architecture overview
 
-To build and preview the frontend production version locally:
+```
+Office PC / Server (always on)
+├── Backend   — Node.js Express  → http://SERVER_IP:3001
+└── Frontend  — Vite preview     → http://SERVER_IP:5173
 
-```bash
-# 1. Install all dependencies (if not already done)
-npm run install:all
-
-# 2. Build the frontend for production
-npm run build
-# The build output will be in the 'frontend/dist' folder.
-
-# 3. Preview the production build locally
-npm run preview
-# This will serve the 'frontend/dist' folder, usually on http://localhost:4173 (or similar).
-# Note: The backend must still be running (npm run server or npm run dev in backend) for API calls to work.
+Staff browsers (same LAN) → http://SERVER_IP:5173
+Remote access (optional)  → Cloudflare Tunnel → SERVER_IP:5173
 ```
 
-### Deploying the Frontend (Vercel / Netlify)
+---
 
-This application has a separate frontend (`frontend/`) and backend (`backend/`). For platforms like Vercel or Netlify, you typically deploy *only the frontend*. The backend would need to be deployed separately to a Node.js-compatible server.
+### Step 1 — Install prerequisites on the Windows server
 
-**General Steps:**
+1. **Node.js 18 LTS** — https://nodejs.org/en/download  
+   ✓ Tick "Automatically install necessary tools" during setup.
 
-1.  **Build Command:** `npm run build` (or `npm --prefix frontend run build`)
-    *   This command builds the frontend application.
-2.  **Output Directory:** `frontend/dist`
-    *   This is the folder that contains the static assets to be served.
-3.  **Environment Variables:**
-    *   Set `VITE_API_BASE_URL` in your Vercel/Netlify project settings to point to your deployed backend API URL (e.g., `https://your-backend-api.com/api`).
-    *   Ensure any other necessary environment variables (e.g., `CORS_ORIGIN` for your backend) are configured correctly on your backend hosting platform.
+2. **Git** — https://git-scm.com/download/win  
+   Use all defaults.
 
-**Warning on Data Storage:**
-This application currently uses `localStorage` for user settings and an SQLite database (`anjani.db`) for tasks and staff, stored locally within the `backend/data/` directory. This setup is ideal for single-user, local deployments or pilots. For real multi-staff usage or production deployments requiring persistent, shared data, consider migrating to a hosted database solution (e.g., Supabase, PostgreSQL, MySQL) and a dedicated backend server. The `backup & data` tools in settings can help with manual data migration.
+3. **PM2** (process manager — keeps the app alive after reboot)
+   ```cmd
+   npm install -g pm2
+   pm2 --version
+   ```
+
+4. **Cloudflare Tunnel CLI** (for remote access — optional)  
+   Download `cloudflared-windows-amd64.msi` from:  
+   https://github.com/cloudflare/cloudflared/releases/latest  
+   Install and confirm: `cloudflared --version`
+
+---
+
+### Step 2 — Clone and install
+
+```cmd
+cd C:\Apps
+git clone https://github.com/YOUR_ORG/anjani-task-center.git
+cd anjani-task-center
+npm run install:all
+```
+
+---
+
+### Step 3 — Configure environment
+
+```cmd
+copy .env.example .env
+notepad .env
+```
+
+Edit `.env` for your network. Key values to change:
+
+```env
+NODE_ENV=production
+PORT=3001
+
+# Replace 192.168.1.100 with the actual LAN IP of this server
+CORS_ORIGIN=http://192.168.1.100:5173
+
+# Same LAN IP — baked into the frontend at build time
+VITE_API_BASE_URL=http://192.168.1.100:3001/api
+```
+
+Find the server's LAN IP: run `ipconfig` in cmd, use the IPv4 address.
+
+---
+
+### Step 4 — Build the frontend
+
+Run this once, and again every time you pull new code:
+
+```cmd
+npm run build
+```
+
+Output goes to `frontend/dist/`.
+
+---
+
+### Step 5 — Start with PM2
+
+```cmd
+pm2 start ecosystem.config.cjs --env production
+pm2 list
+```
+
+You should see both `anjani-backend` and `anjani-frontend` with status `online`.
+
+Test it:
+- Backend health: http://localhost:3001/api/health
+- Frontend: http://localhost:5173
+
+**Save PM2 process list so it survives reboots:**
+
+```cmd
+pm2 save
+```
+
+**Enable PM2 auto-start on Windows boot:**
+
+```cmd
+pm2-startup install
+```
+
+> If `pm2-startup` is not found: `npm install -g pm2-startup`, then run it again.
+
+---
+
+### Step 6 — Allow office staff access (local network)
+
+Staff open a browser and go to:  
+**`http://192.168.1.100:5173`** (replace with your server's LAN IP)
+
+Make sure Windows Firewall allows inbound connections on ports **3001** and **5173**.  
+To open them in PowerShell (run as Admin):
+
+```powershell
+netsh advfirewall firewall add rule name="Anjani Frontend" dir=in action=allow protocol=TCP localport=5173
+netsh advfirewall firewall add rule name="Anjani Backend"  dir=in action=allow protocol=TCP localport=3001
+```
+
+---
+
+### Step 7 — Cloudflare Tunnel (permanent remote access)
+
+Use this only if staff need access from outside the office.
+
+#### One-time setup (run on the server)
+
+```cmd
+cloudflared login
+```
+
+Browser opens → log in to your Cloudflare account → authorise.
+
+```cmd
+cloudflared tunnel create anjani-task-center
+```
+
+Note the Tunnel ID printed (e.g. `abc-123-...`).
+
+```cmd
+cloudflared tunnel route dns anjani-task-center tasks.yourdomain.com
+```
+
+Replace `tasks.yourdomain.com` with a subdomain you own in Cloudflare DNS.
+
+Create `C:\Users\YOUR_USER\.cloudflared\config.yml`:
+
+```yaml
+tunnel: anjani-task-center
+credentials-file: C:\Users\YOUR_USER\.cloudflared\<TUNNEL_ID>.json
+
+ingress:
+  - hostname: tasks.yourdomain.com
+    service: http://localhost:5173
+  - service: http_status:404
+```
+
+Start the tunnel:
+
+```cmd
+cloudflared tunnel run anjani-task-center
+```
+
+#### Run the tunnel as a Windows service (auto-start)
+
+```cmd
+cloudflared service install
+```
+
+#### After setting up a permanent domain — rebuild the frontend
+
+Update `.env`:
+
+```env
+CORS_ORIGIN=https://tasks.yourdomain.com
+VITE_API_BASE_URL=http://192.168.1.100:3001/api
+```
+
+Then rebuild and restart:
+
+```cmd
+npm run build
+pm2 restart anjani-frontend
+```
+
+> **API calls from remote browsers:** When staff access via Cloudflare Tunnel, the frontend JS calls `VITE_API_BASE_URL` directly from their browser. If that URL is a LAN IP, remote browsers cannot reach it. For fully remote access you need the API on a publicly reachable URL too (second tunnel or port-forward on your router to port 3001).
+
+---
+
+### PM2 day-to-day commands
+
+```cmd
+pm2 list                          # status of all processes
+pm2 logs anjani-backend           # live backend logs
+pm2 logs anjani-frontend          # live frontend logs
+pm2 restart anjani-backend        # restart backend only
+pm2 restart all                   # restart everything
+pm2 stop all                      # stop everything
+pm2 delete all                    # remove from PM2
+```
+
+Logs are written to `logs/backend-out.log`, `logs/backend-error.log`, etc.
+
+---
+
+### Updating the app
+
+```cmd
+git pull
+npm run install:all
+npm run build
+pm2 restart all
+```
+
+---
+
+### Backup
+
+The SQLite database lives at `backend/data/anjani.db`.  
+Use the **Settings → Backup & Data** tab to download a JSON export.  
+Store the file in the `backups/` folder (excluded from git).
+
+For automated daily backup, create a Windows Scheduled Task that runs:
+
+```cmd
+copy backend\data\anjani.db backups\anjani-%DATE:~-4,4%%DATE:~-7,2%%DATE:~0,2%.db
+```
+
+---
+
+### ⚠️ Security warnings — read before real staff use
+
+1. **Change all default passwords immediately.**  
+   Default credentials (`admin / admin123`) are hardcoded in `frontend/src/services/auth.js`.  
+   Update them before any real usage.
+
+2. **Do not share the Cloudflare Tunnel URL publicly.**  
+   The URL gives unauthenticated access to the login page — keep it internal.
+
+3. **Remove or update test/sample data.**  
+   Reset to a clean state via Settings → Backup & Data → Clear All Data.
+
+4. **Confirm Windows Firewall rules.**  
+   Only open ports 5173 and 3001 to the office LAN, not to the public internet.
+
+5. **Back up the database before every update.**
+
+---
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `pm2 start` shows frontend as errored | Run `npm run build` first, then restart |
+| Frontend loads but API calls fail | Check `VITE_API_BASE_URL` in `.env` and rebuild |
+| CORS errors in browser console | Add frontend URL to `CORS_ORIGIN` in `.env` and restart backend |
+| Port already in use | `pm2 delete all`, then check `netstat -ano \| findstr :3001` |
+| PM2 frontend not starting on Windows | Replace `npm` with `npx` in ecosystem.config.cjs args: `npx vite preview` |
 
 ## Tech Stack
 

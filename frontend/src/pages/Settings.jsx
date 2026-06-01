@@ -10,7 +10,8 @@ import {
   getChecklists, createChecklist, updateChecklist, deleteChecklist,
   getTaskTemplates, createTaskTemplate, updateTaskTemplate, deleteTaskTemplate,
   getDailyRoutineTemplates, createDailyRoutineTemplate, updateDailyRoutineTemplate, deleteDailyRoutineTemplate,
-  createAuditLog, getStaff
+  createAuditLog, getStaff,
+  getUsers, createUser, updateUser, resetUserPassword, setUserStatus,
 } from '../services/api'
 import {
   requestBrowserNotificationPermission,
@@ -22,6 +23,7 @@ import {
 
 const TABS = [
   { id: 'general',    label: 'General' },
+  { id: 'users',      label: 'Users & Roles' },
   { id: 'categories', label: 'Categories & Departments' },
   { id: 'checklist_defs', label: 'Checklists' },
   { id: 'task_templates', label: 'Task Templates' },
@@ -768,6 +770,300 @@ function TaskTemplatesTab() {
   )
 }
 
+// ── Tab: Users & Roles ────────────────────────────────────────────────────────
+
+const ROLE_LABELS = { admin: 'Admin', manager: 'Manager', staff: 'Staff', viewer: 'Viewer' }
+const ROLE_COLORS = {
+  admin:   'bg-red-50 text-red-700 border-red-200',
+  manager: 'bg-blue-50 text-blue-700 border-blue-100',
+  staff:   'bg-emerald-50 text-emerald-700 border-emerald-200',
+  viewer:  'bg-slate-50 text-slate-600 border-slate-200',
+}
+
+const EMPTY_USER_FORM = { username: '', display_name: '', password: '', role: 'staff', staff_id: '', mobile_number: '', email: '' }
+
+function UsersTab() {
+  const { user: me } = useAuth()
+  const { showToast } = useToast()
+  const [users,       setUsers]       = useState([])
+  const [staff,       setStaff]       = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [loadError,   setLoadError]   = useState(null)
+  const [editUser,    setEditUser]    = useState(null)   // null = add mode, object = edit mode
+  const [showForm,    setShowForm]    = useState(false)
+  const [form,        setForm]        = useState(EMPTY_USER_FORM)
+  const [saving,      setSaving]      = useState(false)
+  const [resetTarget, setResetTarget] = useState(null)  // user whose password is being reset
+  const [resetPwd,    setResetPwd]    = useState('')
+  const [resetting,   setResetting]   = useState(false)
+
+  const isAdmin = me?.role === 'admin'
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      setLoadError(null)
+      const [us, st] = await Promise.all([getUsers(), getStaff()])
+      setUsers(Array.isArray(us) ? us : [])
+      setStaff(Array.isArray(st) ? st : [])
+    } catch (e) {
+      setLoadError(e.message || 'Failed to load users')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  function openAdd() {
+    setEditUser(null)
+    setForm(EMPTY_USER_FORM)
+    setShowForm(true)
+  }
+
+  function openEdit(u) {
+    setEditUser(u)
+    setForm({
+      username:     u.username,
+      display_name: u.display_name || '',
+      password:     '',
+      role:         u.role,
+      staff_id:     u.staff_id ?? '',
+      mobile_number: u.mobile_number || '',
+      email:        u.email || '',
+    })
+    setShowForm(true)
+  }
+
+  function cancelForm() {
+    setShowForm(false)
+    setEditUser(null)
+    setForm(EMPTY_USER_FORM)
+  }
+
+  async function handleSave() {
+    if (!form.username.trim()) return
+    if (!editUser && !form.password.trim()) {
+      showToast('Password is required for new users', 'error')
+      return
+    }
+    setSaving(true)
+    try {
+      const payload = {
+        display_name:  form.display_name.trim() || form.username.trim(),
+        role:          form.role,
+        staff_id:      form.staff_id === '' ? null : parseInt(form.staff_id),
+        mobile_number: form.mobile_number.trim() || null,
+        email:         form.email.trim() || null,
+        ...(editUser ? {} : { username: form.username.trim(), password: form.password }),
+      }
+      if (editUser) {
+        await updateUser(editUser.id, payload)
+        showToast('User updated', 'success')
+      } else {
+        await createUser(payload)
+        showToast('User created', 'success')
+      }
+      cancelForm()
+      await load()
+    } catch (e) {
+      showToast(e.message || 'Failed to save user', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleToggleStatus(u) {
+    const next = u.status === 'active' ? 'inactive' : 'active'
+    if (!window.confirm(`${next === 'inactive' ? 'Deactivate' : 'Activate'} user "${u.display_name || u.username}"?`)) return
+    try {
+      await setUserStatus(u.id, next)
+      showToast(`User ${next}`, 'success')
+      await load()
+    } catch (e) {
+      showToast(e.message || 'Failed to update status', 'error')
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!resetPwd.trim() || resetPwd.length < 4) {
+      showToast('Password must be at least 4 characters', 'error')
+      return
+    }
+    setResetting(true)
+    try {
+      await resetUserPassword(resetTarget.id, resetPwd)
+      showToast(`Password reset for ${resetTarget.display_name || resetTarget.username}`, 'success')
+      setResetTarget(null)
+      setResetPwd('')
+      await load()
+    } catch (e) {
+      showToast(e.message || 'Reset failed', 'error')
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  const staffName = (staffId) => staff.find(s => s.id === staffId)?.name
+
+  return (
+    <div className="space-y-5">
+      {/* Reset Password mini-modal */}
+      {resetTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl border border-[#D1DCF0] p-6 w-full max-w-sm">
+            <h3 className="text-[#111827] font-semibold mb-1">Reset Password</h3>
+            <p className="text-slate-500 text-xs mb-4">Set a new temporary password for <strong>{resetTarget.display_name || resetTarget.username}</strong>.</p>
+            <input
+              type="text"
+              value={resetPwd}
+              onChange={e => setResetPwd(e.target.value)}
+              placeholder="New temporary password"
+              className="w-full border border-[#D1DCF0] rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:border-[#0A3D91]"
+            />
+            <div className="flex gap-2">
+              <button onClick={handleResetPassword} disabled={resetting}
+                className="flex-1 bg-[#0A3D91] text-white rounded-lg py-2 text-sm font-medium hover:bg-[#0057D9] disabled:opacity-50">
+                {resetting ? 'Resetting…' : 'Reset Password'}
+              </button>
+              <button onClick={() => { setResetTarget(null); setResetPwd('') }}
+                className="px-4 py-2 rounded-lg border border-[#D1DCF0] text-slate-600 text-sm hover:bg-slate-50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add/Edit form */}
+      {showForm && isAdmin && (
+        <Section title={editUser ? `Edit User — ${editUser.username}` : 'Add New User'}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <Field label="Username *">
+              <Input value={form.username} disabled={!!editUser}
+                onChange={e => setForm({ ...form, username: e.target.value })}
+                placeholder="e.g. virendra" />
+            </Field>
+            <Field label="Display Name">
+              <Input value={form.display_name}
+                onChange={e => setForm({ ...form, display_name: e.target.value })}
+                placeholder="Full name shown in app" />
+            </Field>
+            {!editUser && (
+              <Field label="Password *">
+                <Input type="text" value={form.password}
+                  onChange={e => setForm({ ...form, password: e.target.value })}
+                  placeholder="Temporary password (min 4 chars)" />
+              </Field>
+            )}
+            <Field label="Role">
+              <Select value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
+                <option value="staff">Staff</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+              </Select>
+            </Field>
+            <Field label="Linked Staff Member">
+              <Select value={form.staff_id} onChange={e => setForm({ ...form, staff_id: e.target.value })}>
+                <option value="">— Not linked —</option>
+                {staff.map(s => <option key={s.id} value={s.id}>{s.name} ({s.department})</option>)}
+              </Select>
+            </Field>
+            <Field label="Mobile">
+              <Input value={form.mobile_number}
+                onChange={e => setForm({ ...form, mobile_number: e.target.value })}
+                placeholder="Mobile number" />
+            </Field>
+            <Field label="Email">
+              <Input value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                placeholder="Email address" />
+            </Field>
+          </div>
+          <div className="flex gap-2">
+            <Btn onClick={handleSave} disabled={saving || !form.username.trim()}>
+              {saving ? 'Saving…' : editUser ? 'Update User' : 'Create User'}
+            </Btn>
+            <Btn variant="ghost" onClick={cancelForm}>Cancel</Btn>
+          </div>
+        </Section>
+      )}
+
+      {/* User list */}
+      <Section title="All User Accounts">
+        {loadError && <ApiErrorBox message={loadError} onRetry={load} />}
+        {isAdmin && !showForm && (
+          <div className="flex justify-end mb-4">
+            <Btn onClick={openAdd}>+ Add User</Btn>
+          </div>
+        )}
+        {loading ? (
+          <p className="text-slate-400 text-sm">Loading…</p>
+        ) : !loadError && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#D1DCF0]">
+                  <th className="py-2 font-semibold">User</th>
+                  <th className="py-2 font-semibold">Role</th>
+                  <th className="py-2 font-semibold">Staff Link</th>
+                  <th className="py-2 font-semibold">Status</th>
+                  <th className="py-2 font-semibold">Last Login</th>
+                  {isAdmin && <th className="py-2 font-semibold text-right">Actions</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#D1DCF0]">
+                {users.map(u => (
+                  <tr key={u.id} className={u.status !== 'active' ? 'opacity-50' : ''}>
+                    <td className="py-3">
+                      <p className="font-medium">{u.display_name || u.username}</p>
+                      <p className="text-xs text-slate-400">@{u.username}</p>
+                      {u.must_change_password === 1 && (
+                        <span className="text-[10px] text-amber-600 font-medium">must change password</span>
+                      )}
+                    </td>
+                    <td className="py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${ROLE_COLORS[u.role] || ROLE_COLORS.viewer}`}>
+                        {ROLE_LABELS[u.role] || u.role}
+                      </span>
+                    </td>
+                    <td className="py-3 text-xs text-slate-500">
+                      {u.staff_id ? (staffName(u.staff_id) || `Staff #${u.staff_id}`) : <span className="text-slate-300">—</span>}
+                    </td>
+                    <td className="py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${u.status === 'active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                        {u.status}
+                      </span>
+                    </td>
+                    <td className="py-3 text-xs text-slate-400">
+                      {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('en-IN') : 'Never'}
+                    </td>
+                    {isAdmin && (
+                      <td className="py-3 text-right">
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          <button onClick={() => openEdit(u)} className="text-blue-600 hover:underline text-xs">Edit</button>
+                          <button onClick={() => { setResetTarget(u); setResetPwd('') }} className="text-amber-600 hover:underline text-xs">Reset Pwd</button>
+                          {u.id !== me?.id && (
+                            <button onClick={() => handleToggleStatus(u)}
+                              className={`text-xs hover:underline ${u.status === 'active' ? 'text-red-600' : 'text-emerald-600'}`}>
+                              {u.status === 'active' ? 'Deactivate' : 'Activate'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+    </div>
+  )
+}
+
 // ── Tab: About ─────────────────────────────────────────────────────────────────
 
 const PHASES = [
@@ -1196,6 +1492,7 @@ export default function Settings() {
         {activeTab === 'general' && (
           <GeneralTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
         )}
+        {activeTab === 'users' && <UsersTab />}
         {activeTab === 'categories' && (
           <CategoriesTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
         )}

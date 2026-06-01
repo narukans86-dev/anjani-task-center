@@ -5,6 +5,7 @@ export const PERMISSIONS = {
     'view_dashboard', 'manage_staff', 'manage_tasks',
     'assign_tasks', 'view_reports', 'access_settings',
     'export_data', 'import_data', 'delete_staff', 'delete_tasks',
+    'manage_users',
   ],
   manager: [
     'view_dashboard', 'manage_tasks', 'assign_tasks',

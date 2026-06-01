@@ -2,6 +2,7 @@
 
 const path = require('path')
 const Database = require('better-sqlite3')
+const bcryptjs = require('bcryptjs')
 
 const DB_PATH = path.join(__dirname, '..', 'data', 'anjani.db')
 
@@ -160,6 +161,24 @@ db.exec(`
     preferred_brand     TEXT,
     substitute_allowed  INTEGER DEFAULT 0,
     notes               TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    username             TEXT NOT NULL UNIQUE,
+    display_name         TEXT,
+    password_hash        TEXT NOT NULL,
+    role                 TEXT DEFAULT 'staff',
+    staff_id             INTEGER,
+    mobile_number        TEXT,
+    email                TEXT,
+    status               TEXT DEFAULT 'active',
+    must_change_password INTEGER DEFAULT 1,
+    session_token        TEXT,
+    last_login_at        TEXT,
+    created_at           TEXT DEFAULT (datetime('now')),
+    updated_at           TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
   );
 `)
 
@@ -495,6 +514,37 @@ if (routineTemplateCount === 0) {
 
   seedRoutine()
   console.log('[DB] Seeded default daily routine templates.')
+}
+
+// ── Seed default users ─────────────────────────────────────────────────────
+
+const userCount = db.prepare('SELECT COUNT(*) AS n FROM users').get().n
+
+if (userCount === 0) {
+  const insertUser = db.prepare(`
+    INSERT INTO users (username, display_name, password_hash, role, staff_id, mobile_number, email, status, must_change_password)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 1)
+  `)
+
+  const SEED_USERS = [
+    { username: 'admin',    display_name: 'Administrator',      password: 'admin123',    role: 'admin',   staff_id: null, mobile: null,         email: null },
+    { username: 'manager',  display_name: 'Manager',            password: 'manager123',  role: 'manager', staff_id: null, mobile: null,         email: null },
+    { username: 'virendra', display_name: 'Virendra Singh',     password: 'Anjani@123',  role: 'staff',   staff_id: 1,    mobile: '9829100001', email: 'virendra@anjanimedical.in' },
+    { username: 'naveen',   display_name: 'Naveen',             password: 'Anjani@123',  role: 'staff',   staff_id: 2,    mobile: '9829100002', email: 'naveen@anjanimedical.in' },
+    { username: 'raj',      display_name: 'Raj Laxkar',         password: 'Anjani@123',  role: 'staff',   staff_id: 3,    mobile: '9829100003', email: 'raj@anjanimedical.in' },
+    { username: 'rakesh',   display_name: 'Rakesh Kumar Meena', password: 'Anjani@123',  role: 'manager', staff_id: 4,    mobile: '9829100004', email: 'rakesh@anjanimedical.in' },
+    { username: 'aditya',   display_name: 'Aditya Parashar',    password: 'Anjani@123',  role: 'staff',   staff_id: 5,    mobile: '9829100005', email: 'aditya@anjanimedical.in' },
+    { username: 'vakil',    display_name: 'Vakil Gurjar',       password: 'Anjani@123',  role: 'manager', staff_id: 6,    mobile: '9829100006', email: 'vakil@anjanimedical.in' },
+  ]
+
+  const seedUsers = db.transaction(() => {
+    for (const u of SEED_USERS) {
+      const hash = bcryptjs.hashSync(u.password, 10)
+      insertUser.run(u.username, u.display_name, hash, u.role, u.staff_id, u.mobile, u.email)
+    }
+  })
+  seedUsers()
+  console.log('[DB] Seeded 8 users (admin, manager, virendra, naveen, raj, rakesh, aditya, vakil).')
 }
 
 module.exports = db
