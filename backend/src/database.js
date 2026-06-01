@@ -90,6 +90,43 @@ db.exec(`
     details     TEXT,
     timestamp   TEXT DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS refill_schedules (
+    id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+    patient_name                TEXT NOT NULL,
+    patient_mobile              TEXT,
+    patient_whatsapp            TEXT,
+    patient_email               TEXT,
+    patient_address             TEXT,
+    patient_type                TEXT DEFAULT 'regular',
+    refill_date                 TEXT,
+    refill_frequency            TEXT DEFAULT 'monthly',
+    custom_interval_days        INTEGER,
+    assigned_sales_staff_id     INTEGER,
+    assigned_purchase_staff_id  INTEGER,
+    assigned_purchase_manager_id INTEGER,
+    delivery_mode               TEXT DEFAULT 'pickup',
+    scheduler_status            TEXT DEFAULT 'active',
+    workflow_status             TEXT DEFAULT 'pending',
+    priority                    TEXT DEFAULT 'medium',
+    start_reminder_days_before  INTEGER DEFAULT 3,
+    notes                       TEXT,
+    last_processed_date         TEXT,
+    next_refill_date            TEXT,
+    created_at                  TEXT DEFAULT (datetime('now')),
+    updated_at                  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS refill_medicines (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    refill_schedule_id  INTEGER NOT NULL REFERENCES refill_schedules(id) ON DELETE CASCADE,
+    medicine_name       TEXT NOT NULL,
+    strength            TEXT,
+    quantity_required   INTEGER DEFAULT 1,
+    preferred_brand     TEXT,
+    substitute_allowed  INTEGER DEFAULT 0,
+    notes               TEXT
+  );
 `)
 
 // ── Migrations: add new columns if they don't exist ────────────────────────

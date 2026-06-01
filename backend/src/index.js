@@ -11,7 +11,8 @@ const tasksRoutes        = require('./routes/tasks')
 const checklistsRouter   = require('./routes/checklists')
 const notificationsRouter= require('./routes/notifications')
 const auditRouter        = require('./routes/audit')
-const reportsRouter      = require('./routes/reports')
+const reportsRouter          = require('./routes/reports')
+const refillSchedulesRouter  = require('./routes/refillSchedules')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -52,7 +53,8 @@ app.use('/api/tasks',         tasksRoutes)
 app.use('/api/checklists',    checklistsRouter)
 app.use('/api/notifications', notificationsRouter)
 app.use('/api/audit',         auditRouter)
-app.use('/api/reports',       reportsRouter)
+app.use('/api/reports',           reportsRouter)
+app.use('/api/refill-schedules',  refillSchedulesRouter)
 
 // ── 404 handler ────────────────────────────────────────────────────────────
 
