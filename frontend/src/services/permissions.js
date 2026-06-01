@@ -31,6 +31,7 @@ export const ROUTE_ROLES = {
   incentives: ['admin', 'manager'],
   patientRefill: ['admin', 'manager', 'staff'],
   refillDashboard: ['admin', 'manager'],
+  quoteEditor: ['admin', 'manager'],
 }
 
 export function hasPermission(user, permission) {
