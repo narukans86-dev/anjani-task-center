@@ -6,7 +6,8 @@ import BrandLogo from '../components/BrandLogo'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
 import { generateTaskNotifications } from '../utils/notificationGenerator'
-import { getDailyRoutineSummary } from '../data/dailyRoutine'
+import { DAILY_ROUTINE_STAFF, getDailyRoutineSummary, readDailyRoutineState, routineProgressFor } from '../data/dailyRoutine'
+import { calculateCommission, calculateSalesProgress, getStaffSalesTargets } from '../data/salesTargets'
 
 const BRAND_BLUE = '#0A3D91'
 
@@ -143,6 +144,17 @@ function performanceStatus(percent, total) {
     return { label: 'Good', cls: 'bg-blue-50 text-blue-700 border-blue-200', bar: BRAND_BLUE }
   }
   return { label: 'Needs attention', cls: 'bg-amber-50 text-amber-700 border-amber-200', bar: '#f59e0b' }
+}
+
+function leagueStatus(score) {
+  if (score >= 100) return { label: 'Champion', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', bar: '#10b981' }
+  if (score >= 75) return { label: 'Rising', cls: 'bg-blue-50 text-blue-700 border-blue-200', bar: BRAND_BLUE }
+  if (score >= 50) return { label: 'Needs Push', cls: 'bg-amber-50 text-amber-700 border-amber-200', bar: '#f59e0b' }
+  return { label: 'At Risk', cls: 'bg-rose-50 text-rose-700 border-rose-200', bar: '#e11d48' }
+}
+
+function formatMoney(value) {
+  return `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`
 }
 
 function Icon({ name, className = 'w-5 h-5' }) {
@@ -385,6 +397,99 @@ function StaffPerformance({ loading, staffPerformance }) {
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{ width: `${s.percent}%`, backgroundColor: status.bar }}
+                    />
+                  </div>
+                </div>
+              )
+            })
+        }
+      </div>
+    </Card>
+  )
+}
+
+function PerformanceLeague({ loading, rows, userRole, myStaffId }) {
+  const visibleRows = userRole === 'staff'
+    ? rows.filter((row) => row.rank <= 3 || String(row.staffId) === String(myStaffId))
+    : rows
+  const ownRank = userRole === 'staff'
+    ? rows.find((row) => String(row.staffId) === String(myStaffId))
+    : null
+
+  if (userRole === 'viewer') return null
+
+  return (
+    <Card className="p-5 overflow-hidden">
+      <SectionHeader
+        title="Performance League"
+        subtitle={
+          userRole === 'staff'
+            ? 'Your rank and today\'s top performers.'
+            : 'Weighted by sales progress, daily routine, and task completion.'
+        }
+        action={
+          userRole === 'staff' && ownRank && (
+            <TaskBadge className="bg-blue-50 text-[#0A3D91] border border-blue-200">
+              Your rank #{ownRank.rank}
+            </TaskBadge>
+          )
+        }
+      />
+
+      <div className="mt-5 space-y-3">
+        {loading
+          ? [1, 2, 3].map((i) => <div key={i} className="h-24 rounded-2xl bg-slate-100 animate-pulse" />)
+          : visibleRows.length === 0
+          ? <EmptyState icon="users" title="No performance data available" />
+          : visibleRows.map((row) => {
+              const status = leagueStatus(row.overallScore)
+              const isOwnRow = String(row.staffId) === String(myStaffId)
+              return (
+                <div
+                  key={row.staffId}
+                  className={[
+                    'rounded-2xl border p-3 sm:p-4 transition-colors',
+                    isOwnRow ? 'border-[#0A3D91]/30 bg-blue-50/50' : 'border-[#D1DCF0] bg-slate-50/60',
+                  ].join(' ')}
+                >
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+                    <div className="flex items-center gap-3 min-w-0 lg:w-64">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${row.rank <= 3 ? 'bg-[#0A3D91] text-white' : 'bg-white text-[#0A3D91] border border-blue-100'}`}>
+                        #{row.rank}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-[#111827] truncate">{row.staffName}</p>
+                        <p className="text-[11px] text-slate-500 truncate">{row.role}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex-1">
+                      {[
+                        ['Sales', row.salesProgressPercent],
+                        ['Routine', row.routineCompletionPercent],
+                        ['Tasks', row.taskCompletionPercent],
+                        ['Overall', row.overallScore],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-xl bg-white border border-slate-100 px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+                          <p className="mt-0.5 text-sm font-bold tabular-nums text-[#111827]">{value}%</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2 lg:w-52 lg:justify-end">
+                      <div className="text-left lg:text-right">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Est. Commission</p>
+                        <p className="text-sm font-bold text-[#111827] tabular-nums">{formatMoney(row.estimatedCommission)}</p>
+                      </div>
+                      <TaskBadge className={`border ${status.cls}`}>{status.label}</TaskBadge>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 h-2 rounded-full bg-white border border-slate-100 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(row.overallScore, 100)}%`, backgroundColor: status.bar }}
                     />
                   </div>
                 </div>
@@ -693,6 +798,50 @@ export default function Dashboard() {
     return { ...staff, total: assigned.length, completed, percent }
   }).sort((a, b) => b.percent - a.percent || b.total - a.total || a.name.localeCompare(b.name)), [activeStaffList, allTasks])
 
+  const performanceLeagueRows = useMemo(() => {
+    const routineState = readDailyRoutineState()
+    const routineByName = new Map(DAILY_ROUTINE_STAFF.map((staff) => [
+      staff.name,
+      routineProgressFor(staff, routineState.checks).percent,
+    ]))
+    const salesByStaffId = new Map(getStaffSalesTargets().map((target) => [String(target.staffId), target]))
+    const taskByStaffId = new Map(staffPerformance.map((staff) => [String(staff.id), staff.percent]))
+
+    return activeStaffList
+      .map((staff) => {
+        const salesTarget = salesByStaffId.get(String(staff.id))
+        const salesProgressPercent = calculateSalesProgress(
+          salesTarget?.todaySalesAchieved ?? 0,
+          salesTarget?.dailySalesTarget ?? 0
+        )
+        const salesScore = Math.min(salesProgressPercent, 120)
+        const routineCompletionPercent = routineByName.get(staff.name) ?? 0
+        const taskCompletionPercent = taskByStaffId.get(String(staff.id)) ?? 0
+        const commission = calculateCommission(
+          salesProgressPercent,
+          salesTarget?.commissionRule,
+          routineCompletionPercent,
+          salesTarget?.minimumRoutineCompletionPercent ?? 70
+        )
+        const overallScore = Math.round(
+          (salesScore * 0.5) + (routineCompletionPercent * 0.3) + (taskCompletionPercent * 0.2)
+        )
+
+        return {
+          staffId: staff.id,
+          staffName: staff.name,
+          role: staff.role || salesTarget?.role || 'Staff',
+          salesProgressPercent,
+          routineCompletionPercent,
+          taskCompletionPercent,
+          estimatedCommission: commission.reward,
+          overallScore,
+        }
+      })
+      .sort((a, b) => b.overallScore - a.overallScore || b.salesProgressPercent - a.salesProgressPercent || a.staffName.localeCompare(b.staffName))
+      .map((row, index) => ({ ...row, rank: index + 1 }))
+  }, [activeStaffList, staffPerformance])
+
   const urgentTasks = useMemo(() => visibleAllTasks
     .filter((task) => isOpenTask(task) && (isHighPriority(task) || isOverdue(task, today)))
     .sort((a, b) => Number(isOverdue(b, today)) - Number(isOverdue(a, today)) || sortOperationalTasks(a, b)), [visibleAllTasks, today])
@@ -773,6 +922,13 @@ export default function Dashboard() {
         onPrev={prevMonth}
         onNext={nextMonth}
         onDateClick={openDate}
+      />
+
+      <PerformanceLeague
+        loading={loading}
+        rows={performanceLeagueRows}
+        userRole={user?.role}
+        myStaffId={myStaffId}
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
