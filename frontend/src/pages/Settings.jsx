@@ -13,6 +13,7 @@ const TABS = [
   { id: 'general',    label: 'General' },
   { id: 'categories', label: 'Categories & Departments' },
   { id: 'backup',     label: 'Backup & Data' },
+  { id: 'notifications', label: 'Notifications' }, // New tab
   { id: 'about',      label: 'About' },
 ]
 
@@ -49,6 +50,37 @@ function Input({ className = '', ...props }) {
     />
   )
 }
+
+function Select({ className = '', children, ...props }) { // New Select component
+  return (
+    <select
+      className={`w-full bg-white border border-[#D1DCF0] rounded-lg px-3 py-2 text-sm text-[#111827] focus:outline-none focus:border-[#0A3D91] focus:ring-2 focus:ring-[#0A3D91]/10 transition-colors appearance-none ${className}`}
+      {...props}
+    >
+      {children}
+    </select>
+  )
+}
+
+function Toggle({ label, checked, onChange, disabled = false }) { // New Toggle component
+  return (
+    <label className={`flex items-center cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+      <div className="relative">
+        <input
+          type="checkbox"
+          className="sr-only"
+          checked={checked}
+          onChange={onChange}
+          disabled={disabled}
+        />
+        <div className={`block w-10 h-6 rounded-full ${checked ? 'bg-[#0A3D91]' : 'bg-slate-300'}`} />
+        <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition ${checked ? 'translate-x-full' : ''}`} />
+      </div>
+      <div className="ml-3 text-sm font-medium text-[#111827]">{label}</div>
+    </label>
+  )
+}
+
 
 function Btn({ variant = 'primary', className = '', ...props }) {
   const base = 'inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed'
@@ -385,6 +417,19 @@ function InfoRow({ label, value }) {
 function AboutTab() {
   return (
     <>
+      {/* Launch Safety Banner */}
+      <Section className="bg-red-50 border-red-200 text-red-700">
+        <div className="flex items-start gap-3">
+          <svg viewBox="0 0 24 24" className="w-5 h-5 text-red-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p className="font-semibold text-sm">Current launch mode: Local browser storage.</p>
+            <p className="text-xs mt-1">Use for pilot/testing only. For real multi-staff use, connect Supabase/SQLite database.</p>
+          </div>
+        </div>
+      </Section>
+
       <Section title="Application">
         <div className="flex items-center gap-4 mb-5">
           <div className="w-12 h-12 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
@@ -427,6 +472,121 @@ function AboutTab() {
           <InfoRow key={label} label={label} value={value} />
         ))}
       </Section>
+    </>
+  )
+}
+
+// ── Tab: Notifications ─────────────────────────────────────────────────────────
+
+import {
+  requestBrowserNotificationPermission,
+  getBrowserNotificationPermission,
+  getBrowserNotificationFallbackMessage,
+} from '../services/notificationService'
+
+function NotificationsTab({ settings, onChange, onSave, saving }) {
+  const { showToast } = useToast()
+  const [browserPermissionStatus, setBrowserPermissionStatus] = useState(getBrowserNotificationPermission())
+
+  useEffect(() => {
+    // Note: 'permissionchange' event is not standard across all browsers,
+    // so a re-check on focus or component mount is more reliable.
+    // For now, we rely on the component mounting and re-checking.
+    // A more robust solution might involve polling or a custom event.
+    setBrowserPermissionStatus(Notification.permission)
+  }, [])
+
+  async function handleRequestBrowserPermission() {
+    const permission = await requestBrowserNotificationPermission()
+    setBrowserPermissionStatus(permission)
+    if (permission === 'granted') {
+      showToast('Browser notifications enabled!', 'success')
+      onChange('browserNotificationsEnabled', true) // Also update app setting
+    } else if (permission === 'denied') {
+      showToast('Browser notifications blocked. Please enable in browser settings.', 'error')
+      onChange('browserNotificationsEnabled', false) // Also update app setting
+    } else { // default or unsupported
+      showToast('Browser notifications not enabled.', 'info')
+      onChange('browserNotificationsEnabled', false) // Also update app setting
+    }
+  }
+
+  const browserNotificationFallback = getBrowserNotificationFallbackMessage()
+
+  return (
+    <>
+      <Section title="Browser Notifications">
+        <Field
+          label="Enable Browser Push Notifications"
+          hint="Receive alerts even when the app is in the background."
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-600">Current Status: <strong>{browserPermissionStatus}</strong></span>
+            {browserPermissionStatus !== 'granted' && browserPermissionStatus !== 'unsupported' && (
+              <Btn
+                onClick={handleRequestBrowserPermission}
+                variant="ghost"
+                type="button"
+                className="ml-auto"
+                disabled={browserPermissionStatus === 'denied'}
+              >
+                {browserPermissionStatus === 'default' ? 'Enable Notifications' : 'Re-enable Notifications'}
+              </Btn>
+            )}
+          </div>
+          {browserPermissionStatus === 'denied' && (
+            <p className="text-xs text-red-500 mt-2">{browserNotificationFallback}</p>
+          )}
+          {browserPermissionStatus === 'unsupported' && (
+            <p className="text-xs text-slate-500 mt-2">{browserNotificationFallback}</p>
+          )}
+        </Field>
+        {browserPermissionStatus === 'granted' && (
+          <Toggle
+            label="In-App Setting: Receive Browser Notifications"
+            checked={settings.browserNotificationsEnabled}
+            onChange={(e) => onChange('browserNotificationsEnabled', e.target.checked)}
+            // hint="This controls whether the app will attempt to show browser notifications, independent of browser permission."
+          />
+        )}
+      </Section>
+
+      <Section title="In-App Notification Preferences">
+        <Field label="Task Reminders" hint="Get notified for upcoming tasks.">
+          <Toggle
+            label="Enable Task Reminders"
+            checked={settings.taskRemindersEnabled}
+            onChange={(e) => onChange('taskRemindersEnabled', e.target.checked)}
+          />
+        </Field>
+        <Field label="Overdue Alerts" hint="Receive alerts for delayed tasks.">
+          <Toggle
+            label="Enable Overdue Alerts"
+            checked={settings.overdueAlertsEnabled}
+            onChange={(e) => onChange('overdueAlertsEnabled', e.target.checked)}
+          />
+        </Field>
+        <Field label="Checklist Alerts" hint="Get reminders for incomplete checklists.">
+          <Toggle
+            label="Enable Checklist Alerts"
+            checked={settings.checklistAlertsEnabled}
+            onChange={(e) => onChange('checklistAlertsEnabled', e.target.checked)}
+          />
+        </Field>
+        <Field label="Reminder Time Preference">
+          <Select
+            value={settings.reminderTimePreference}
+            onChange={(e) => onChange('reminderTimePreference', e.target.value)}
+          >
+            <option value="morning">Morning (9 AM)</option>
+            <option value="afternoon">Afternoon (1 PM)</option>
+            <option value="evening">Evening (5 PM)</option>
+          </Select>
+        </Field>
+      </Section>
+      <Btn onClick={onSave} disabled={saving}>
+        {saving ? 'Saving…' : 'Save Notification Settings'}
+      </Btn>
     </>
   )
 }
@@ -489,6 +649,9 @@ export default function Settings() {
         <CategoriesTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
       )}
       {activeTab === 'backup' && <BackupTab />}
+      {activeTab === 'notifications' && (
+        <NotificationsTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
+      )}
       {activeTab === 'about' && <AboutTab />}
     </div>
   )

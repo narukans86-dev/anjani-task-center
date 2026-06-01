@@ -130,6 +130,43 @@ router.post('/generate', (_req, res) => {
     }
   }
 
+  // Staff inactive
+  const inactiveStaff = db.prepare(`
+    SELECT id, name FROM staff
+    WHERE status = 'inactive'
+  `).all()
+
+  for (const staff of inactiveStaff) {
+    const dupe = db.prepare(`
+      SELECT id FROM notifications
+      WHERE related_staff_id=? AND type='staff' AND title LIKE 'Inactive staff%'
+        AND date(created_at)=?
+    `).get(staff.id, date)
+    if (!dupe) {
+      const info = insert.run(
+        `Inactive staff: ${staff.name}`,
+        `${staff.name} is currently marked as inactive.`,
+        'staff', 'medium', null, staff.id
+      )
+      created.push(info.lastInsertRowid)
+    }
+  }
+
+  // System backup reminder (daily)
+  const backupDupe = db.prepare(`
+    SELECT id FROM notifications
+    WHERE type='system' AND title LIKE 'System backup reminder%'
+      AND date(created_at)=?
+  `).get(date)
+  if (!backupDupe) {
+    const info = insert.run(
+      'System backup reminder',
+      'Remember to export your data for backup and safety.',
+      'system', 'low', null, null
+    )
+    created.push(info.lastInsertRowid)
+  }
+
   res.json({ generated: created.length, ids: created })
 })
 

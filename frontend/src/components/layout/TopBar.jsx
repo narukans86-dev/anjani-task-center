@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getNotifications, getUnreadCount } from '../../services/api'
 import NotificationPanel from '../NotificationPanel'
 import BrandLogo from '../BrandLogo'
+import { getBrowserNotificationPermission, showBrowserNotification } from '../../services/notificationService'
 
 const PAGE_TITLES = {
   '/dashboard': 'Dashboard',
@@ -34,6 +35,7 @@ export default function TopBar({ onMenuClick }) {
   const [panelOpen, setPanelOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState([])
+  const prevNotificationIds = useRef(new Set()) // To track notifications already shown as browser push
 
   useEffect(() => {
     const id = setInterval(() => setTime(new Date()), 1000)
@@ -44,8 +46,33 @@ export default function TopBar({ onMenuClick }) {
     try {
       const [countData, notifsData] = await Promise.all([getUnreadCount(), getNotifications()])
       setUnreadCount(countData.count)
+
+      // Filter for new unread notifications that haven't been shown as browser push yet
+      const newUnreadNotifications = notifsData.filter(
+        n => !n.is_read && !prevNotificationIds.current.has(n.id)
+      )
+
+      for (const n of newUnreadNotifications) {
+        // Conditions for showing browser notifications
+        const shouldShowBrowserNotification =
+          getBrowserNotificationPermission() === 'granted' &&
+          (
+            (n.type === 'task' && (n.priority === 'critical' || n.priority === 'high' || n.title.startsWith('Overdue'))) ||
+            (n.type === 'checklist' && n.title.startsWith('Incomplete')) ||
+            (n.type === 'system' && n.title.startsWith('System backup reminder')) // Added system backup reminder
+          )
+
+        if (shouldShowBrowserNotification) {
+          showBrowserNotification(n.title, n.message || 'Check your Anjani Task Center for details.')
+          prevNotificationIds.current.add(n.id) // Mark as shown
+        }
+      }
+
       setNotifications(notifsData)
-    } catch { /* silent */ }
+    } catch (error) {
+      console.error("Failed to fetch notifications:", error)
+      // silent
+    }
   }, [])
 
   useEffect(() => {
@@ -145,3 +172,4 @@ export default function TopBar({ onMenuClick }) {
     </>
   )
 }
+

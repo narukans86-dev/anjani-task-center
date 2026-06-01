@@ -11,6 +11,11 @@ export const DEFAULT_SETTINGS = {
   ],
   defaultDepartments: ['Sales', 'Purchase', 'Customer Support', 'Accounts', 'Admin'],
   theme: 'dark',
+  browserNotificationsEnabled: true,
+  taskRemindersEnabled: true,
+  overdueAlertsEnabled: true,
+  checklistAlertsEnabled: true,
+  reminderTimePreference: 'morning', // 'morning', 'afternoon', 'evening'
 }
 
 export function getSettings() {
@@ -81,7 +86,13 @@ export async function exportAllData() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `anjani-backup-${Date.now()}.json`
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = (now.getMonth() + 1).toString().padStart(2, '0')
+  const day = now.getDate().toString().padStart(2, '0')
+  const hours = now.getHours().toString().padStart(2, '0')
+  const minutes = now.getMinutes().toString().padStart(2, '0')
+  a.download = `anjani-task-center-backup-${year}-${month}-${day}-${hours}-${minutes}.json`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

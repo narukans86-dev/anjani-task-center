@@ -17,34 +17,51 @@ Local staff task management system for Anjani Medical. Runs entirely on your com
 **Requirements:** Node.js 18+, npm
 
 ```bash
-# 1. Install all dependencies (run once)
+# 1. Create .env from .env.example (run once)
+cp .env.example .env
+
+# 2. Install all dependencies (run once)
 npm run install:all
 
-# 2. Start the full app (frontend + backend together)
+# 3. Start the full app (frontend + backend together)
 npm run dev
+```
+
+**Environment Variables:**
+The `.env` file configures the application:
+- `PORT`: Backend server port (default: 3001).
+- `CORS_ORIGIN`: Allowed frontend origins for the backend API (e.g., `http://localhost:5173`).
+- `VITE_API_BASE_URL`: Frontend's base URL for the backend API (e.g., `http://localhost:3001/api`).
 
 # Frontend: http://localhost:5173
 # Backend:  http://localhost:3001
-```
 
 ## Running on Windows (Company Server)
 
 **Requirements:** [Node.js 18+ for Windows](https://nodejs.org/en/download)
 
 ```bash
+# 1. Create .env from .env.example (run once)
+copy .env.example .env
+
+# 2. Install all dependencies (run once)
 npm run install:all
+
+# 3. Start the full app (frontend + backend together)
 npm run dev
 ```
 
 Open a browser and go to: `http://localhost:5173`
 
-> If port 3001 is blocked by a firewall, set the environment variable `PORT=3002` before starting.
-> For production: run `npm run build` then serve the `frontend/dist/` folder with any static file server or IIS.
+> If port 3001 is blocked by a firewall, set `PORT` in your `.env` file (e.g., `PORT=3002`).
+> The frontend development server runs on port 5173 by default. If this port is in use, Vite will automatically pick another.
 
 ## Project Structure
 
 ```
 anjani-task-center/
+├── .env.example            # Example environment variables
+├── .env                    # Environment variables (copied from .env.example)
 ├── package.json              # Root — dev/build scripts (concurrently)
 ├── README.md
 ├── backend/
@@ -59,7 +76,7 @@ anjani-task-center/
 │           └── staff.js      # GET/POST/PUT/DELETE /api/staff
 └── frontend/
     ├── package.json
-    ├── vite.config.js        # Vite + /api proxy → localhost:3001
+    ├── vite.config.js        # Vite + /api proxy to backend API_BASE_URL
     ├── tailwind.config.js
     └── src/
         ├── App.jsx           # Routes: login, dashboard, tasks, staff…
@@ -94,7 +111,45 @@ anjani-task-center/
             └── AccessDenied.jsx
 ```
 
+## Deployment
+
+### Local Production Build & Preview
+
+To build and preview the frontend production version locally:
+
+```bash
+# 1. Install all dependencies (if not already done)
+npm run install:all
+
+# 2. Build the frontend for production
+npm run build
+# The build output will be in the 'frontend/dist' folder.
+
+# 3. Preview the production build locally
+npm run preview
+# This will serve the 'frontend/dist' folder, usually on http://localhost:4173 (or similar).
+# Note: The backend must still be running (npm run server or npm run dev in backend) for API calls to work.
+```
+
+### Deploying the Frontend (Vercel / Netlify)
+
+This application has a separate frontend (`frontend/`) and backend (`backend/`). For platforms like Vercel or Netlify, you typically deploy *only the frontend*. The backend would need to be deployed separately to a Node.js-compatible server.
+
+**General Steps:**
+
+1.  **Build Command:** `npm run build` (or `npm --prefix frontend run build`)
+    *   This command builds the frontend application.
+2.  **Output Directory:** `frontend/dist`
+    *   This is the folder that contains the static assets to be served.
+3.  **Environment Variables:**
+    *   Set `VITE_API_BASE_URL` in your Vercel/Netlify project settings to point to your deployed backend API URL (e.g., `https://your-backend-api.com/api`).
+    *   Ensure any other necessary environment variables (e.g., `CORS_ORIGIN` for your backend) are configured correctly on your backend hosting platform.
+
+**Warning on Data Storage:**
+This application currently uses `localStorage` for user settings and an SQLite database (`anjani.db`) for tasks and staff, stored locally within the `backend/data/` directory. This setup is ideal for single-user, local deployments or pilots. For real multi-staff usage or production deployments requiring persistent, shared data, consider migrating to a hosted database solution (e.g., Supabase, PostgreSQL, MySQL) and a dedicated backend server. The `backup & data` tools in settings can help with manual data migration.
+
 ## Tech Stack
+
 
 | Layer    | Technology                                       |
 |----------|--------------------------------------------------|
@@ -107,7 +162,7 @@ anjani-task-center/
 
 - **Phase 1** — Scaffold + health check ✓
 - **Phase 2** — Dashboard · Tasks · Staff · Calendar · Reports ✓
-- **Phase 3** — Auth · Roles · Settings · Backup & Data tools ✓
+- **Phase 3** — Settings · Backup & Data tools · In-app & Browser Notifications ✓
 
 ## Files Created / Modified in Phase 3
 

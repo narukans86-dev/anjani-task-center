@@ -11,7 +11,8 @@ const PRIORITY_BORDER = {
 const TYPE_ICON = {
   task:      '📋',
   checklist: '✅',
-  system:    'ℹ️',
+  system:    '⚙️', // Added system icon
+  staff:     '👤', // Added staff icon
 }
 
 function timeAgo(isoString) {

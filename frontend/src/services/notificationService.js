@@ -21,5 +21,54 @@ export function getPreferenceColor(preference) {
 export function sendNotification(staff, message, type = 'general') {
   const preference = staff.notification_preference ?? 'App'
   console.log(`[NOTIFICATION] -> ${staff.name} via ${preference}: ${message}`)
+  // This is a placeholder for future external notification systems (WhatsApp, SMS, Email)
+  // For now, it only logs to console.
   return { sent: false, reason: 'Not implemented yet', preference }
+}
+
+// --- Browser Push-Style Local Notifications ---
+
+const BROWSER_NOTIFICATION_PERMISSION_KEY = 'browserNotificationPermission'
+
+export function getBrowserNotificationPermission() {
+  return localStorage.getItem(BROWSER_NOTIFICATION_PERMISSION_KEY) || 'default'
+}
+
+export function setBrowserNotificationPermission(permission) {
+  localStorage.setItem(BROWSER_NOTIFICATION_PERMISSION_KEY, permission)
+}
+
+export async function requestBrowserNotificationPermission() {
+  if (!('Notification' in window)) {
+    console.warn('Browser does not support notifications.')
+    return 'unsupported'
+  }
+
+  const permission = await Notification.requestPermission()
+  setBrowserNotificationPermission(permission)
+  return permission
+}
+
+export function showBrowserNotification(title, message, options = {}) {
+  if (!('Notification' in window)) {
+    console.warn('Browser does not support notifications.')
+    return
+  }
+
+  if (getBrowserNotificationPermission() === 'granted') {
+    new Notification(title, { body: message, ...options })
+  } else {
+    console.warn('Browser notification permission not granted or blocked.')
+  }
+}
+
+// Fallback message if browser blocks notifications
+export function getBrowserNotificationFallbackMessage() {
+  if (!('Notification' in window)) {
+    return 'Your browser does not support desktop notifications.'
+  }
+  if (Notification.permission === 'denied') {
+    return 'You have blocked desktop notifications. Please enable them in your browser settings.'
+  }
+  return 'Enable desktop notifications to get alerts even when app is in background.'
 }
