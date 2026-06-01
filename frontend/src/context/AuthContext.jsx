@@ -19,10 +19,30 @@ export function AuthProvider({ children }) {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const u = getCurrentUser()
-    setUser(u)
-    setMustChange(u?.mustChangePassword === true)
-    setLoading(false)
+    const stored = getCurrentUser()
+    if (!stored) {
+      setLoading(false)
+      return
+    }
+    // Validate the stored token against the backend before trusting it
+    fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${stored.token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('session_invalid')
+        return res.json()
+      })
+      .then(({ user: fresh }) => {
+        const merged = { ...stored, ...fresh, token: stored.token }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged))
+        setUser(merged)
+        setMustChange(merged.mustChangePassword === true)
+      })
+      .catch(() => {
+        localStorage.removeItem(STORAGE_KEY)
+        setUser(null)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   const login = useCallback(async (username, password) => {

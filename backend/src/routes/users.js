@@ -3,6 +3,7 @@
 const express  = require('express')
 const bcryptjs = require('bcryptjs')
 const db       = require('../database')
+const { requireAdmin } = require('../middleware/auth')
 
 const router = express.Router()
 
@@ -17,29 +18,13 @@ function writeAudit(action, entityId, actorName, details) {
   ).run(action, 'user', entityId ?? null, actorName ?? null, details ?? null)
 }
 
-function requireAuth(req, res, next) {
-  const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
-  if (!token) return res.status(401).json({ error: 'Not authenticated.' })
-  const user = db.prepare('SELECT * FROM users WHERE session_token = ? AND status = ?').get(token, 'active')
-  if (!user) return res.status(401).json({ error: 'Session expired.' })
-  req.currentUser = user
-  next()
-}
-
-function requireAdmin(req, res, next) {
-  requireAuth(req, res, () => {
-    if (req.currentUser.role !== 'admin') return res.status(403).json({ error: 'Admin access required.' })
-    next()
-  })
-}
-
 function withStaffName(user) {
   const s = user.staff_id ? db.prepare('SELECT name FROM staff WHERE id = ?').get(user.staff_id) : null
   return { ...sanitize(user), staff_name: s?.name ?? null }
 }
 
-// GET /api/users — list all (auth required; managers see list, admins see all)
-router.get('/', requireAuth, (_req, res) => {
+// GET /api/users — list all (requireAuth applied globally in index.js)
+router.get('/', (_req, res) => {
   const rows = db.prepare(`
     SELECT u.*, s.name AS staff_name
     FROM users u

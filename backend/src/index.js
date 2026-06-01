@@ -6,6 +6,8 @@ const cors = require('cors')
 // Initialize DB (creates file + tables + seeds on first run)
 const db = require('./database')
 
+const { requireAuth } = require('./middleware/auth')
+
 const authRouter             = require('./routes/auth')
 const usersRouter            = require('./routes/users')
 const staffRoutes            = require('./routes/staff')
@@ -45,6 +47,7 @@ app.use((req, _res, next) => {
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 
+// Public routes — no auth required
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -54,18 +57,19 @@ app.get('/api/health', (_req, res) => {
     environment: process.env.NODE_ENV || 'development',
   })
 })
+app.use('/api/auth', authRouter)
 
-app.use('/api/auth',          authRouter)
-app.use('/api/users',         usersRouter)
-app.use('/api/staff',         staffRoutes)
-app.use('/api/tasks',         tasksRoutes)
-app.use('/api/checklists',    checklistsRouter)
-app.use('/api/notifications', notificationsRouter)
-app.use('/api/audit',         auditRouter)
-app.use('/api/reports',           reportsRouter)
-app.use('/api/refill-schedules',  refillSchedulesRouter)
-app.use('/api/task-templates',    taskTemplatesRouter)
-app.use('/api/daily-routine',     dailyRoutinesRouter)
+// Protected routes — valid session token required for all
+app.use('/api/users',            requireAuth, usersRouter)
+app.use('/api/staff',            requireAuth, staffRoutes)
+app.use('/api/tasks',            requireAuth, tasksRoutes)
+app.use('/api/checklists',       requireAuth, checklistsRouter)
+app.use('/api/notifications',    requireAuth, notificationsRouter)
+app.use('/api/audit',            requireAuth, auditRouter)
+app.use('/api/reports',          requireAuth, reportsRouter)
+app.use('/api/refill-schedules', requireAuth, refillSchedulesRouter)
+app.use('/api/task-templates',   requireAuth, taskTemplatesRouter)
+app.use('/api/daily-routine',    requireAuth, dailyRoutinesRouter)
 
 // ── 404 handler ────────────────────────────────────────────────────────────
 

@@ -259,6 +259,15 @@ if (!userColNames.includes('whatsapp_number')) {
 if (!userColNames.includes('notification_preference')) {
   db.prepare("ALTER TABLE users ADD COLUMN notification_preference TEXT DEFAULT 'App'").run()
 }
+if (!userColNames.includes('access_role')) {
+  db.prepare('ALTER TABLE users ADD COLUMN access_role TEXT').run()
+}
+
+// Set Rakesh as sales_manager if not already explicitly set
+db.prepare(`
+  UPDATE users SET access_role = 'sales_manager'
+  WHERE username = 'rakesh' AND (access_role IS NULL OR access_role = '')
+`).run()
 
 const staffCols = db.prepare("PRAGMA table_info(staff)").all().map((c) => c.name)
 const addIfMissing = (col, def) => {
