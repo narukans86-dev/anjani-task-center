@@ -8,7 +8,15 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      host: '0.0.0.0',
       port: 5173,
+      strictPort: true,
+      allowedHosts: [
+        'localhost',
+        '127.0.0.1',
+        '.trycloudflare.com',
+        'accidents-innocent-multimedia-projected.trycloudflare.com',
+      ],
       proxy: {
         '/api': {
           target: API_BASE_URL.replace('/api', ''), // http://localhost:3001
