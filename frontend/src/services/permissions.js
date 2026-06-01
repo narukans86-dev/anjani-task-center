@@ -29,6 +29,7 @@ export const ROUTE_ROLES = {
   checklist: ['admin', 'manager', 'staff'],
   dailyRoutine: ['admin', 'manager', 'staff', 'viewer'],
   incentives: ['admin', 'manager'],
+  patientRefill: ['admin', 'manager', 'staff'],
 }
 
 export function hasPermission(user, permission) {
