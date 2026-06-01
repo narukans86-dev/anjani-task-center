@@ -49,6 +49,13 @@ export async function resumeRefillSchedule(id) {
   return apiFetch(`/refill-schedules/${id}/resume`, { method: 'PATCH' })
 }
 
+export async function updateWorkflowStatus(id, status, notes = '') {
+  return apiFetch(`/refill-schedules/${id}/workflow-status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes }),
+  })
+}
+
 // Soft-cancel by default; pass hard=true to permanently delete
 export async function deleteRefillSchedule(id, { hard = false } = {}) {
   return apiFetch(`/refill-schedules/${id}${hard ? '?hard=true' : ''}`, { method: 'DELETE' })

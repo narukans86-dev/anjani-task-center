@@ -11,9 +11,9 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: API_BASE_URL.replace('/api', ''), // Remove /api for proxy target
+          target: API_BASE_URL.replace('/api', ''), // http://localhost:3001
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''), // Rewrite to remove /api prefix
+          // No rewrite — backend routes are already mounted under /api/*
         },
       },
     },

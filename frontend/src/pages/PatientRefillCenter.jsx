@@ -8,6 +8,7 @@ import {
   pauseRefillSchedule,
   resumeRefillSchedule,
   deleteRefillSchedule,
+  updateWorkflowStatus,
 } from '../services/refillSchedules'
 import { getStaff } from '../services/api'
 
@@ -16,7 +17,25 @@ import { getStaff } from '../services/api'
 const DELIVERY_MODES = ['pickup', 'home_delivery', 'courier', 'online']
 const FREQUENCIES = ['daily', 'weekly', 'fortnightly', 'monthly', 'bimonthly', 'quarterly', 'custom']
 const PRIORITIES = ['low', 'medium', 'high', 'critical']
-const WORKFLOW_STATUSES = ['pending', 'in_progress', 'completed', 'cancelled']
+const WORKFLOW_STATUSES = [
+  'upcoming', 'stock_check_pending', 'reorder_required', 'reorder_placed',
+  'stock_available', 'patient_call_pending', 'patient_confirmed',
+  'dispatch_pending', 'dispatched', 'delivered', 'cancelled',
+  // legacy values kept for display compat
+  'pending', 'in_progress', 'completed',
+]
+
+const WORKFLOW_TRANSITIONS = {
+  upcoming:             ['stock_check_pending'],
+  stock_check_pending:  ['reorder_required', 'stock_available'],
+  reorder_required:     ['reorder_placed'],
+  reorder_placed:       ['stock_available'],
+  stock_available:      ['patient_call_pending'],
+  patient_call_pending: ['patient_confirmed', 'cancelled'],
+  patient_confirmed:    ['dispatch_pending'],
+  dispatch_pending:     ['dispatched'],
+  dispatched:           ['delivered'],
+}
 const SCHEDULER_STATUSES = ['active', 'paused', 'cancelled']
 const PATIENT_TYPES = ['regular', 'chronic', 'critical', 'new']
 
@@ -37,10 +56,21 @@ const PRIORITY_CFG = {
 }
 
 const WORKFLOW_CFG = {
-  pending:     { label: 'Pending',     cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
-  in_progress: { label: 'In Progress', cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
-  completed:   { label: 'Completed',   cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
-  cancelled:   { label: 'Cancelled',   cls: 'bg-slate-100 text-slate-500 border border-slate-200' },
+  upcoming:             { label: 'Upcoming',             cls: 'bg-slate-100 text-slate-600 border border-slate-200' },
+  stock_check_pending:  { label: 'Stock Check Pending',  cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  reorder_required:     { label: 'Reorder Required',     cls: 'bg-orange-50 text-orange-700 border border-orange-200' },
+  reorder_placed:       { label: 'Reorder Placed',       cls: 'bg-amber-50 text-amber-700 border border-amber-200' },
+  stock_available:      { label: 'Stock Available',      cls: 'bg-teal-50 text-teal-700 border border-teal-200' },
+  patient_call_pending: { label: 'Patient Call Pending', cls: 'bg-purple-50 text-purple-700 border border-purple-200' },
+  patient_confirmed:    { label: 'Patient Confirmed',    cls: 'bg-indigo-50 text-indigo-700 border border-indigo-200' },
+  dispatch_pending:     { label: 'Dispatch Pending',     cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  dispatched:           { label: 'Dispatched',           cls: 'bg-cyan-50 text-cyan-700 border border-cyan-200' },
+  delivered:            { label: 'Delivered',            cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
+  cancelled:            { label: 'Cancelled',            cls: 'bg-slate-100 text-slate-500 border border-slate-200' },
+  // legacy
+  pending:              { label: 'Pending',              cls: 'bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  in_progress:          { label: 'In Progress',          cls: 'bg-blue-50 text-blue-700 border border-blue-200' },
+  completed:            { label: 'Completed',            cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
 }
 
 const SCHEDULER_CFG = {
@@ -60,7 +90,7 @@ const DEFAULT_FORM = {
   nextRefillDate: '',
   assignedSalesStaffId: '', assignedPurchaseStaffId: '',
   deliveryMode: 'pickup', priority: 'medium',
-  schedulerStatus: 'active', workflowStatus: 'pending',
+  schedulerStatus: 'active', workflowStatus: 'upcoming',
   startReminderDaysBefore: 3, notes: '',
   medicines: [{ medicineName: '', strength: '', quantityRequired: 1, preferredBrand: '', substituteAllowed: false, notes: '' }],
 }
@@ -353,7 +383,7 @@ function ScheduleForm({ initial, staff, onSave, onClose, saving }) {
                   options={SCHEDULER_STATUSES.map((s) => ({ value: s, label: SCHEDULER_CFG[s]?.label ?? s }))} />
                 <Select label="Workflow Status" value={form.workflowStatus} onChange={(v) => set('workflowStatus', v)}
                   placeholder=""
-                  options={WORKFLOW_STATUSES.map((s) => ({ value: s, label: WORKFLOW_CFG[s]?.label ?? s }))} />
+                  options={Object.entries(WORKFLOW_CFG).map(([v, c]) => ({ value: v, label: c.label }))} />
               </div>
             </section>
           )}
@@ -404,9 +434,74 @@ function ScheduleForm({ initial, staff, onSave, onClose, saving }) {
   )
 }
 
+// ── Workflow Advance control ───────────────────────────────────────────────
+
+function WorkflowAdvance({ schedule, onAdvance, busy }) {
+  const current = schedule.workflow_status
+  const allowed = WORKFLOW_TRANSITIONS[current] ?? []
+  const [open, setOpen] = useState(false)
+
+  if (allowed.length === 0) return null
+
+  const isCancelled = schedule.scheduler_status === 'cancelled'
+  if (isCancelled) return null
+
+  if (allowed.length === 1) {
+    const next = allowed[0]
+    const cfg = WORKFLOW_CFG[next]
+    return (
+      <button
+        disabled={busy}
+        onClick={() => onAdvance(schedule, next)}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#0A3D91] text-white hover:bg-blue-800 disabled:opacity-50 transition-colors shadow-sm"
+        title={`Advance to: ${cfg?.label ?? next}`}
+      >
+        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        {cfg?.label ?? next}
+      </button>
+    )
+  }
+
+  return (
+    <div className="relative">
+      <button
+        disabled={busy}
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-[#0A3D91] text-white hover:bg-blue-800 disabled:opacity-50 transition-colors shadow-sm"
+      >
+        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        Advance
+        <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-xl border border-[#D1DCF0] shadow-lg z-30 min-w-[160px] py-1">
+          {allowed.map((next) => {
+            const cfg = WORKFLOW_CFG[next]
+            return (
+              <button
+                key={next}
+                onClick={() => { setOpen(false); onAdvance(schedule, next) }}
+                className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-blue-50 hover:text-[#0A3D91] transition-colors"
+              >
+                {cfg?.label ?? next}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Schedule Card ──────────────────────────────────────────────────────────
 
-function ScheduleCard({ s, staffMap, onEdit, onPause, onResume, onCancel }) {
+function ScheduleCard({ s, staffMap, onEdit, onPause, onResume, onCancel, onAdvanceWorkflow, advancingId }) {
   const salesName = staffMap[s.assigned_sales_staff_id] ?? '—'
   const purchaseName = staffMap[s.assigned_purchase_staff_id] ?? '—'
   const medCount = Array.isArray(s.medicines) ? s.medicines.length : 0
@@ -457,9 +552,16 @@ function ScheduleCard({ s, staffMap, onEdit, onPause, onResume, onCancel }) {
           <p className="text-slate-400 font-medium mb-0.5">Delivery</p>
           <p className="text-slate-700">{DELIVERY_LABELS[s.delivery_mode] ?? s.delivery_mode ?? '—'}</p>
         </div>
-        <div>
-          <p className="text-slate-400 font-medium mb-0.5">Workflow</p>
-          <Badge cfg={WORKFLOW_CFG} value={s.workflow_status} />
+        <div className="col-span-2">
+          <p className="text-slate-400 font-medium mb-1">Workflow Status</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge cfg={WORKFLOW_CFG} value={s.workflow_status} />
+            <WorkflowAdvance
+              schedule={s}
+              onAdvance={onAdvanceWorkflow}
+              busy={advancingId === s.id}
+            />
+          </div>
         </div>
       </div>
 
@@ -529,6 +631,7 @@ export default function PatientRefillCenter() {
   const [staff, setStaff] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [advancingId, setAdvancingId] = useState(null)
 
   // UI state
   const [showForm, setShowForm] = useState(false)
@@ -649,6 +752,20 @@ export default function PatientRefillCenter() {
       await load()
     } catch (err) {
       showToast(err.message, 'error')
+    }
+  }
+
+  const handleAdvanceWorkflow = async (s, nextStatus) => {
+    setAdvancingId(s.id)
+    try {
+      await updateWorkflowStatus(s.id, nextStatus)
+      const cfg = WORKFLOW_CFG[nextStatus]
+      showToast(`${s.patient_name} → ${cfg?.label ?? nextStatus}`, 'success')
+      await load()
+    } catch (err) {
+      showToast(err.message, 'error')
+    } finally {
+      setAdvancingId(null)
     }
   }
 
@@ -801,7 +918,7 @@ export default function PatientRefillCenter() {
               placeholder="Status: All" />
 
             <Select value={filterWorkflow} onChange={setFilterWorkflow}
-              options={WORKFLOW_STATUSES.map((s) => ({ value: s, label: WORKFLOW_CFG[s]?.label ?? s }))}
+              options={Object.entries(WORKFLOW_CFG).map(([v, c]) => ({ value: v, label: c.label }))}
               placeholder="Workflow: All" />
 
             <Select value={filterDelivery} onChange={setFilterDelivery}
@@ -872,6 +989,8 @@ export default function PatientRefillCenter() {
                 onPause={handlePause}
                 onResume={handleResume}
                 onCancel={(s) => setCancelTarget(s)}
+                onAdvanceWorkflow={handleAdvanceWorkflow}
+                advancingId={advancingId}
               />
             ))}
           </div>

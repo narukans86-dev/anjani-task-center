@@ -243,6 +243,77 @@ router.patch('/:id/resume', (req, res) => {
   res.json(attachMedicines(db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)))
 })
 
+// ── PATCH /api/refill-schedules/:id/workflow-status ──────────────────────
+
+const WORKFLOW_TRANSITIONS = {
+  upcoming:             ['stock_check_pending'],
+  stock_check_pending:  ['reorder_required', 'stock_available'],
+  reorder_required:     ['reorder_placed'],
+  reorder_placed:       ['stock_available'],
+  stock_available:      ['patient_call_pending'],
+  patient_call_pending: ['patient_confirmed', 'cancelled'],
+  patient_confirmed:    ['dispatch_pending'],
+  dispatch_pending:     ['dispatched'],
+  dispatched:           ['delivered'],
+}
+
+router.patch('/:id/workflow-status', (req, res) => {
+  const row = db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)
+  if (!row) return res.status(404).json({ error: 'Refill schedule not found.' })
+
+  const { status, notes } = req.body ?? {}
+  if (!status) return res.status(400).json({ error: 'status is required.' })
+
+  const current = row.workflow_status
+  const allowed = WORKFLOW_TRANSITIONS[current] ?? []
+
+  if (!allowed.includes(status)) {
+    return res.status(400).json({
+      error: `Cannot transition from '${current}' to '${status}'.`,
+      allowed,
+    })
+  }
+
+  db.prepare(`UPDATE refill_schedules SET workflow_status=?, updated_at=datetime('now') WHERE id=?`)
+    .run(status, req.params.id)
+
+  audit('WORKFLOW_STATUS_CHANGE', req.params.id, { from: current, to: status, notes: notes ?? null })
+
+  // Advance linked workflow task status when relevant
+  try {
+    const TASK_STEP_FOR_STATUS = {
+      stock_check_pending:  'stock_check',
+      stock_available:      'verify_availability',
+      patient_call_pending: 'patient_call',
+      dispatched:           'dispatch',
+    }
+    const step = TASK_STEP_FOR_STATUS[status]
+    if (step) {
+      db.prepare(`
+        UPDATE tasks SET status='in_progress', updated_at=datetime('now')
+        WHERE patient_schedule_id=? AND workflow_step=? AND status='pending'
+      `).run(req.params.id, step)
+    }
+    if (status === 'delivered' || status === 'cancelled') {
+      db.prepare(`
+        UPDATE tasks SET status=?, updated_at=datetime('now')
+        WHERE patient_schedule_id=? AND status IN ('pending','in_progress')
+      `).run(status === 'delivered' ? 'completed' : 'cancelled', req.params.id)
+    }
+  } catch { /* non-fatal */ }
+
+  const updated = db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)
+  res.json({ ...updated, medicines: db.prepare('SELECT * FROM refill_medicines WHERE refill_schedule_id = ?').all(req.params.id) })
+})
+
+// ── GET /api/refill-schedules/:id/workflow-transitions ───────────────────
+
+router.get('/:id/workflow-transitions', (req, res) => {
+  const row = db.prepare('SELECT workflow_status FROM refill_schedules WHERE id = ?').get(req.params.id)
+  if (!row) return res.status(404).json({ error: 'Refill schedule not found.' })
+  res.json({ current: row.workflow_status, allowed: WORKFLOW_TRANSITIONS[row.workflow_status] ?? [] })
+})
+
 // ── POST /api/refill-schedules/:id/generate-workflow ─────────────────────
 // Manually (re-)trigger workflow task generation for a cycle.
 // Pass { cycleDate: 'YYYY-MM-DD' } to override next_refill_date for the run.
