@@ -17,6 +17,15 @@ export const DEFAULT_SETTINGS = {
   checklistAlertsEnabled: true,
   reminderTimePreference: 'morning', // 'morning', 'afternoon', 'evening'
   refillSchedulerNotificationsEnabled: true,
+  // Refill Scheduler defaults
+  refillReminderDaysBefore: 4,
+  refillWeekendCommandStartDay: 'wednesday',
+  refillSundayHandling: 'friday',
+  refillDefaultPurchaseStaffId: '',
+  refillDefaultSalesStaffId: '',
+  refillDefaultDeliveryMode: 'pickup',
+  refillBrowserNotificationsEnabled: true,
+  refillInAppAlertsEnabled: true,
 }
 
 export function getSettings() {

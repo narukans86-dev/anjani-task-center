@@ -13,7 +13,8 @@ const TABS = [
   { id: 'general',    label: 'General' },
   { id: 'categories', label: 'Categories & Departments' },
   { id: 'backup',     label: 'Backup & Data' },
-  { id: 'notifications', label: 'Notifications' }, // New tab
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'refill',     label: 'Refill Scheduler' },
   { id: 'about',      label: 'About' },
 ]
 
@@ -396,6 +397,9 @@ const PHASES = [
   { label: 'Phase 1', detail: 'Scaffold & health check', done: true },
   { label: 'Phase 2', detail: 'Dashboard, tasks, staff, calendar, reports', done: true },
   { label: 'Phase 3', detail: 'Settings, backup & data tools', done: true },
+  { label: 'Phase 4', detail: 'Auth, roles, daily routine & checklists', done: true },
+  { label: 'Phase 5', detail: 'Notifications, audit log, incentives', done: true },
+  { label: 'Phase 6', detail: 'Patient Refill Command Center (6A–6I)', done: true },
 ]
 
 const STACK = [
@@ -483,6 +487,7 @@ import {
   getBrowserNotificationPermission,
   getBrowserNotificationFallbackMessage,
 } from '../services/notificationService'
+import { getStaff } from '../services/api'
 
 function NotificationsTab({ settings, onChange, onSave, saving }) {
   const { showToast } = useToast()
@@ -618,6 +623,144 @@ function NotificationsTab({ settings, onChange, onSave, saving }) {
   )
 }
 
+// ── Tab: Refill Scheduler ──────────────────────────────────────────────────────
+
+function RefillSchedulerTab({ settings, onChange, onSave, saving }) {
+  const [staffList, setStaffList] = useState([])
+
+  useEffect(() => {
+    getStaff()
+      .then((res) => setStaffList(Array.isArray(res) ? res : (res.data ?? [])))
+      .catch(() => setStaffList([]))
+  }, [])
+
+  const purchaseStaff = staffList.filter((s) => s.department === 'Purchase' || s.status === 'active')
+  const salesStaff    = staffList.filter((s) => s.department === 'Sales'    || s.status === 'active')
+
+  return (
+    <>
+      <Section title="Timing & Scheduling">
+        <Field
+          label="Default Reminder Days Before Refill"
+          hint="How many days ahead to start the refill workflow. Default: 4 days."
+        >
+          <Select
+            value={settings.refillReminderDaysBefore ?? 4}
+            onChange={(e) => onChange('refillReminderDaysBefore', Number(e.target.value))}
+          >
+            {[2, 3, 4, 5, 6, 7].map((d) => (
+              <option key={d} value={d}>{d} days before refill</option>
+            ))}
+          </Select>
+        </Field>
+        <Field
+          label="Weekend Command Start Day"
+          hint="Which day to start sending refill commands for a weekend refill."
+        >
+          <Select
+            value={settings.refillWeekendCommandStartDay ?? 'wednesday'}
+            onChange={(e) => onChange('refillWeekendCommandStartDay', e.target.value)}
+          >
+            <option value="monday">Monday</option>
+            <option value="tuesday">Tuesday</option>
+            <option value="wednesday">Wednesday (Recommended)</option>
+            <option value="thursday">Thursday</option>
+            <option value="friday">Friday</option>
+          </Select>
+        </Field>
+        <Field
+          label="Sunday Refill Handling"
+          hint="When refill falls on Sunday, prepare by which day?"
+        >
+          <Select
+            value={settings.refillSundayHandling ?? 'friday'}
+            onChange={(e) => onChange('refillSundayHandling', e.target.value)}
+          >
+            <option value="friday">Prepare by Friday</option>
+            <option value="saturday">Prepare by Saturday</option>
+          </Select>
+        </Field>
+      </Section>
+
+      <Section title="Default Staff Assignment">
+        <Field label="Default Purchase Staff" hint="Pre-selected for stock check and reorder tasks.">
+          <Select
+            value={settings.refillDefaultPurchaseStaffId ?? ''}
+            onChange={(e) => onChange('refillDefaultPurchaseStaffId', e.target.value)}
+          >
+            <option value="">— None (assign manually) —</option>
+            {purchaseStaff.map((s) => (
+              <option key={s.id} value={s.id}>{s.name} ({s.department})</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Default Sales Staff" hint="Pre-selected for patient call and dispatch tasks.">
+          <Select
+            value={settings.refillDefaultSalesStaffId ?? ''}
+            onChange={(e) => onChange('refillDefaultSalesStaffId', e.target.value)}
+          >
+            <option value="">— None (assign manually) —</option>
+            {salesStaff.map((s) => (
+              <option key={s.id} value={s.id}>{s.name} ({s.department})</option>
+            ))}
+          </Select>
+        </Field>
+      </Section>
+
+      <Section title="Default Delivery Mode">
+        <Field label="Default Delivery Mode" hint="Used when creating new refill schedules.">
+          <Select
+            value={settings.refillDefaultDeliveryMode ?? 'pickup'}
+            onChange={(e) => onChange('refillDefaultDeliveryMode', e.target.value)}
+          >
+            <option value="pickup">Pickup</option>
+            <option value="delivery">Home Delivery</option>
+            <option value="Shiprocket">Shiprocket</option>
+          </Select>
+        </Field>
+      </Section>
+
+      <Section title="Refill Notifications">
+        <Field label="Enable Refill Browser Notifications" hint="Show OS-level browser notifications for refill alerts.">
+          <Toggle
+            label="Enable Refill Browser Notifications"
+            checked={settings.refillBrowserNotificationsEnabled ?? true}
+            onChange={(e) => onChange('refillBrowserNotificationsEnabled', e.target.checked)}
+          />
+        </Field>
+        <Field label="Enable Refill In-App Alerts" hint="Generate in-app alerts for stock checks, reorders, and dispatch.">
+          <Toggle
+            label="Enable Refill In-App Alerts"
+            checked={settings.refillInAppAlertsEnabled ?? true}
+            onChange={(e) => onChange('refillInAppAlertsEnabled', e.target.checked)}
+          />
+        </Field>
+        <div className="mt-3 rounded-lg bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700 space-y-1">
+          <p className="font-semibold">Active notification triggers:</p>
+          <ul className="list-disc list-inside space-y-0.5">
+            <li>Stock check — {settings.refillReminderDaysBefore ?? 4}+ days before refill</li>
+            <li>Reorder reminder — 3–5 days before refill</li>
+            <li>Purchase verification — 2–3 days before refill</li>
+            <li>Sales call — 1–2 days before refill</li>
+            <li>Dispatch — on refill day</li>
+            <li>Overdue alert — past refill date</li>
+          </ul>
+          <p className="mt-2 text-blue-600 italic">
+            Weekend scheduling uses{' '}
+            <strong>{settings.refillWeekendCommandStartDay ?? 'wednesday'}</strong> start,
+            Sunday refills prepare by{' '}
+            <strong>{settings.refillSundayHandling ?? 'friday'}</strong>.
+          </p>
+        </div>
+      </Section>
+
+      <Btn onClick={onSave} disabled={saving}>
+        {saving ? 'Saving…' : 'Save Refill Settings'}
+      </Btn>
+    </>
+  )
+}
+
 // ── Main Settings page ─────────────────────────────────────────────────────────
 
 export default function Settings() {
@@ -678,6 +821,9 @@ export default function Settings() {
       {activeTab === 'backup' && <BackupTab />}
       {activeTab === 'notifications' && (
         <NotificationsTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
+      )}
+      {activeTab === 'refill' && (
+        <RefillSchedulerTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
       )}
       {activeTab === 'about' && <AboutTab />}
     </div>
