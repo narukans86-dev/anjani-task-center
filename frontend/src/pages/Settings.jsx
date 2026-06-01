@@ -584,6 +584,33 @@ function NotificationsTab({ settings, onChange, onSave, saving }) {
           </Select>
         </Field>
       </Section>
+
+      <Section title="Refill Scheduler Notifications">
+        <Field
+          label="Enable Refill Scheduler Notifications"
+          hint="Generate in-app alerts for stock checks, reorders, sales calls, dispatch, and overdue refills. Runs automatically each session."
+        >
+          <Toggle
+            label="Enable Refill Scheduler Notifications"
+            checked={settings.refillSchedulerNotificationsEnabled ?? true}
+            onChange={(e) => onChange('refillSchedulerNotificationsEnabled', e.target.checked)}
+          />
+        </Field>
+        <div className="mt-3 rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700 space-y-1">
+          <p className="font-semibold">Notification triggers:</p>
+          <ul className="list-disc list-inside space-y-0.5">
+            <li>Stock check reminder — 5–7 days before refill</li>
+            <li>Reorder reminder — 3–5 days before refill</li>
+            <li>Purchase verification — 2–3 days before refill</li>
+            <li>Sales call reminder — 1–2 days before refill</li>
+            <li>Dispatch reminder — on refill day</li>
+            <li>Critical warning — refill near but stock unverified</li>
+            <li>Overdue alert — past refill date</li>
+          </ul>
+          <p className="mt-2 text-amber-600 italic">WhatsApp / SMS / Email delivery coming soon.</p>
+        </div>
+      </Section>
+
       <Btn onClick={onSave} disabled={saving}>
         {saving ? 'Saving…' : 'Save Notification Settings'}
       </Btn>

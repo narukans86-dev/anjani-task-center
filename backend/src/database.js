@@ -149,6 +149,17 @@ addTaskCol('generated_from',     'TEXT')
 addTaskCol('refill_cycle_key',   'TEXT')
 addTaskCol('workflow_step',      'TEXT')
 
+// notifications dedup key
+const notifCols = db.prepare("PRAGMA table_info(notifications)").all().map((c) => c.name)
+if (!notifCols.includes('dedup_key')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN dedup_key TEXT').run()
+  db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_dedup ON notifications(dedup_key) WHERE dedup_key IS NOT NULL').run()
+}
+// notifications refill schedule link
+if (!notifCols.includes('related_schedule_id')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN related_schedule_id INTEGER').run()
+}
+
 const staffCols = db.prepare("PRAGMA table_info(staff)").all().map((c) => c.name)
 const addIfMissing = (col, def) => {
   if (!staffCols.includes(col)) {

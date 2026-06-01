@@ -44,6 +44,7 @@ export const markNotificationRead = (id) => req(`/notifications/${id}/read`, { m
 export const markAllRead = () => req('/notifications/read-all', { method: 'PATCH' })
 export const deleteNotification = (id) => req(`/notifications/${id}`, { method: 'DELETE' })
 export const generateNotifications = () => req('/notifications/generate', { method: 'POST' })
+export const generateRefillNotifications = () => req('/notifications/generate-refill', { method: 'POST' })
 
 // ── Audit ──────────────────────────────────────────────────────────────────
 export const getAuditLogs = (page = 1, limit = 50) =>

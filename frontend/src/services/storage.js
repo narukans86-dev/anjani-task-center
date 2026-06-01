@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   overdueAlertsEnabled: true,
   checklistAlertsEnabled: true,
   reminderTimePreference: 'morning', // 'morning', 'afternoon', 'evening'
+  refillSchedulerNotificationsEnabled: true,
 }
 
 export function getSettings() {
