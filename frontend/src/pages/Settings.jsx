@@ -6,12 +6,24 @@ import {
   getSettings, saveSettings, DEFAULT_SETTINGS,
   exportAllData, importData, clearAllData, resetToSampleData,
 } from '../services/storage'
+import {
+  getChecklists, createChecklist, updateChecklist, deleteChecklist,
+  getTaskTemplates, createTaskTemplate, updateTaskTemplate, deleteTaskTemplate,
+  createAuditLog, getStaff
+} from '../services/api'
+import {
+  requestBrowserNotificationPermission,
+  getBrowserNotificationPermission,
+  getBrowserNotificationFallbackMessage,
+} from '../services/notificationService'
 
 // ── Tab definitions ────────────────────────────────────────────────────────────
 
 const TABS = [
   { id: 'general',    label: 'General' },
   { id: 'categories', label: 'Categories & Departments' },
+  { id: 'checklist_defs', label: 'Checklists' },
+  { id: 'task_templates', label: 'Task Templates' },
   { id: 'backup',     label: 'Backup & Data' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'refill',     label: 'Refill Scheduler' },
@@ -391,6 +403,307 @@ function BackupTab() {
   )
 }
 
+// ── Tab: Checklist Definitions ──────────────────────────────────────────────
+
+function ChecklistDefsTab() {
+  const { user } = useAuth()
+  const { showToast } = useToast()
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [editItem, setEditItem] = useState(null)
+  const [form, setForm] = useState({ title: '', description: '', type: 'opening', order_index: 0, is_required: 1, active: 1 })
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      const data = await getChecklists()
+      setItems(data)
+    } catch (e) {
+      showToast('Failed to load checklists', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  useEffect(() => { load() }, [load])
+
+  function startEdit(item) {
+    setEditItem(item)
+    setForm({ ...item })
+  }
+
+  function cancelEdit() {
+    setEditItem(null)
+    setForm({ title: '', description: '', type: 'opening', order_index: 0, is_required: 1, active: 1 })
+  }
+
+  async function handleSave() {
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      if (editItem) {
+        await updateChecklist(editItem.id, form)
+        showToast('Checklist item updated', 'success')
+        createAuditLog({ action: 'checklist_def_edited', entity_type: 'checklist', entity_id: editItem.id, user_name: user?.name, details: `Checklist item '${form.title}' updated` }).catch(() => {})
+      } else {
+        const created = await createChecklist(form)
+        showToast('Checklist item added', 'success')
+        createAuditLog({ action: 'checklist_def_added', entity_type: 'checklist', entity_id: created.id, user_name: user?.name, details: `Checklist item '${form.title}' added` }).catch(() => {})
+      }
+      cancelEdit()
+      await load()
+    } catch (e) {
+      showToast('Failed to save checklist item', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(item) {
+    if (!window.confirm(`Deactivate "${item.title}"?`)) return
+    try {
+      await deleteChecklist(item.id)
+      showToast('Checklist item deactivated', 'success')
+      createAuditLog({ action: 'checklist_def_deactivated', entity_type: 'checklist', entity_id: item.id, user_name: user?.name, details: `Checklist item '${item.title}' deactivated` }).catch(() => {})
+      await load()
+    } catch (e) {
+      showToast('Failed to deactivate item', 'error')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <Section title={editItem ? "Edit Item" : "Add Checklist Item"}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <Field label="Title *">
+            <Input value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} placeholder="e.g. Store opened on time" />
+          </Field>
+          <Field label="Type">
+            <Select value={form.type} onChange={(e) => setForm({...form, type: e.target.value})}>
+              <option value="opening">Opening</option>
+              <option value="closing">Closing</option>
+              <option value="daily">Daily</option>
+            </Select>
+          </Field>
+        </div>
+        <Field label="Description">
+          <Input value={form.description || ''} onChange={(e) => setForm({...form, description: e.target.value})} placeholder="Optional instructions..." />
+        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+          <Field label="Order Index">
+            <Input type="number" value={form.order_index} onChange={(e) => setForm({...form, order_index: parseInt(e.target.value) || 0})} />
+          </Field>
+          <div className="flex items-center gap-4 h-14">
+            <Toggle label="Required" checked={!!form.is_required} onChange={(e) => setForm({...form, is_required: e.target.checked ? 1 : 0})} />
+          </div>
+          <div className="flex items-center gap-4 h-14">
+            <Toggle label="Active" checked={!!form.active} onChange={(e) => setForm({...form, active: e.target.checked ? 1 : 0})} />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <Btn onClick={handleSave} disabled={saving || !form.title.trim()}>{saving ? 'Saving...' : (editItem ? 'Update' : 'Add Item')}</Btn>
+          {editItem && <Btn variant="ghost" onClick={cancelEdit}>Cancel</Btn>}
+        </div>
+      </Section>
+
+      <Section title="Current Checklist Definitions">
+        {loading ? (
+          <p className="text-slate-400 text-sm">Loading...</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#D1DCF0]">
+                  <th className="py-2 font-semibold">Title</th>
+                  <th className="py-2 font-semibold">Type</th>
+                  <th className="py-2 font-semibold">Order</th>
+                  <th className="py-2 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#D1DCF0]">
+                {items.map((item) => (
+                  <tr key={item.id} className={!item.active ? 'opacity-50' : ''}>
+                    <td className="py-3">
+                      <p className="font-medium">{item.title}</p>
+                      {item.description && <p className="text-xs text-slate-400">{item.description}</p>}
+                    </td>
+                    <td className="py-3 capitalize">{item.type}</td>
+                    <td className="py-3">{item.order_index}</td>
+                    <td className="py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => startEdit(item)} className="text-blue-600 hover:underline">Edit</button>
+                        <button onClick={() => handleDelete(item)} className="text-red-600 hover:underline">Deactivate</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+    </div>
+  )
+}
+
+// ── Tab: Task Templates ──────────────────────────────────────────────────────
+
+function TaskTemplatesTab() {
+  const { user } = useAuth()
+  const { showToast } = useToast()
+  const [templates, setTemplates] = useState([])
+  const [staff, setStaff] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [editTpl, setEditTpl] = useState(null)
+  const [form, setForm] = useState({ title: '', description: '', category: '', priority: 'medium', department: '', assigned_to: '', active: 1 })
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      const [tpls, stf] = await Promise.all([getTaskTemplates(), getStaff()])
+      setTemplates(tpls)
+      setStaff(stf)
+    } catch (e) {
+      showToast('Failed to load templates', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  useEffect(() => { load() }, [load])
+
+  function startEdit(tpl) {
+    setEditTpl(tpl)
+    setForm({ ...tpl, assigned_to: tpl.assigned_to || '' })
+  }
+
+  function cancelEdit() {
+    setEditTpl(null)
+    setForm({ title: '', description: '', category: '', priority: 'medium', department: '', assigned_to: '', active: 1 })
+  }
+
+  async function handleSave() {
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      const payload = { ...form, assigned_to: form.assigned_to === '' ? null : parseInt(form.assigned_to) }
+      if (editTpl) {
+        await updateTaskTemplate(editTpl.id, payload)
+        showToast('Template updated', 'success')
+        createAuditLog({ action: 'task_template_edited', entity_type: 'task_template', entity_id: editTpl.id, user_name: user?.name, details: `Task template '${form.title}' updated` }).catch(() => {})
+      } else {
+        const created = await createTaskTemplate(payload)
+        showToast('Template added', 'success')
+        createAuditLog({ action: 'task_template_added', entity_type: 'task_template', entity_id: created.id, user_name: user?.name, details: `Task template '${form.title}' added` }).catch(() => {})
+      }
+      cancelEdit()
+      await load()
+    } catch (e) {
+      showToast('Failed to save template', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(tpl) {
+    if (!window.confirm(`Deactivate template "${tpl.title}"?`)) return
+    try {
+      await deleteTaskTemplate(tpl.id)
+      showToast('Template deactivated', 'success')
+      createAuditLog({ action: 'task_template_deactivated', entity_type: 'task_template', entity_id: tpl.id, user_name: user?.name, details: `Task template '${tpl.title}' deactivated` }).catch(() => {})
+      await load()
+    } catch (e) {
+      showToast('Failed to deactivate template', 'error')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <Section title={editTpl ? "Edit Template" : "Add Task Template"}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <Field label="Template Title *">
+            <Input value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} placeholder="e.g. Daily cash handover" />
+          </Field>
+          <Field label="Category">
+            <Input value={form.category || ''} onChange={(e) => setForm({...form, category: e.target.value})} placeholder="e.g. Sales, Admin" />
+          </Field>
+        </div>
+        <Field label="Description">
+          <textarea
+            className="w-full bg-white border border-[#D1DCF0] rounded-lg px-3 py-2 text-sm text-[#111827] placeholder-slate-400 focus:outline-none focus:border-[#0A3D91] focus:ring-2 focus:ring-[#0A3D91]/10 transition-colors resize-none"
+            rows={3}
+            value={form.description || ''}
+            onChange={(e) => setForm({...form, description: e.target.value})}
+            placeholder="Template description..."
+          />
+        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+          <Field label="Priority">
+            <Select value={form.priority} onChange={(e) => setForm({...form, priority: e.target.value})}>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </Select>
+          </Field>
+          <Field label="Default Assignee">
+            <Select value={form.assigned_to} onChange={(e) => setForm({...form, assigned_to: e.target.value})}>
+              <option value="">-- None --</option>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </Field>
+          <div className="flex items-center gap-4 h-14">
+            <Toggle label="Active" checked={!!form.active} onChange={(e) => setForm({...form, active: e.target.checked ? 1 : 0})} />
+          </div>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <Btn onClick={handleSave} disabled={saving || !form.title.trim()}>{saving ? 'Saving...' : (editTpl ? 'Update' : 'Add Template')}</Btn>
+          {editTpl && <Btn variant="ghost" onClick={cancelEdit}>Cancel</Btn>}
+        </div>
+      </Section>
+
+      <Section title="Current Task Templates">
+        {loading ? (
+          <p className="text-slate-400 text-sm">Loading...</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#D1DCF0]">
+                  <th className="py-2 font-semibold">Title</th>
+                  <th className="py-2 font-semibold">Category</th>
+                  <th className="py-2 font-semibold">Priority</th>
+                  <th className="py-2 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#D1DCF0]">
+                {templates.map((tpl) => (
+                  <tr key={tpl.id} className={!tpl.active ? 'opacity-50' : ''}>
+                    <td className="py-3">
+                      <p className="font-medium">{tpl.title}</p>
+                      {tpl.description && <p className="text-xs text-slate-400 truncate max-w-xs">{tpl.description}</p>}
+                    </td>
+                    <td className="py-3">{tpl.category}</td>
+                    <td className="py-3 capitalize">{tpl.priority}</td>
+                    <td className="py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => startEdit(tpl)} className="text-blue-600 hover:underline">Edit</button>
+                        <button onClick={() => handleDelete(tpl)} className="text-red-600 hover:underline">Deactivate</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+    </div>
+  )
+}
+
 // ── Tab: About ─────────────────────────────────────────────────────────────────
 
 const PHASES = [
@@ -481,13 +794,6 @@ function AboutTab() {
 }
 
 // ── Tab: Notifications ─────────────────────────────────────────────────────────
-
-import {
-  requestBrowserNotificationPermission,
-  getBrowserNotificationPermission,
-  getBrowserNotificationFallbackMessage,
-} from '../services/notificationService'
-import { getStaff } from '../services/api'
 
 function NotificationsTab({ settings, onChange, onSave, saving }) {
   const { showToast } = useToast()
@@ -818,6 +1124,8 @@ export default function Settings() {
       {activeTab === 'categories' && (
         <CategoriesTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
       )}
+      {activeTab === 'checklist_defs' && <ChecklistDefsTab />}
+      {activeTab === 'task_templates' && <TaskTemplatesTab />}
       {activeTab === 'backup' && <BackupTab />}
       {activeTab === 'notifications' && (
         <NotificationsTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />

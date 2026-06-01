@@ -88,4 +88,64 @@ router.delete('/complete/:id', (req, res) => {
   res.json({ message: 'Completion removed.' })
 })
 
+// ── Admin Management Routes ────────────────────────────────────────────────
+
+// POST /api/checklists — create a new checklist definition
+router.post('/', (req, res) => {
+  const { title, description, type, order_index, is_required, active } = req.body
+  if (!title) return res.status(400).json({ error: 'Title is required.' })
+
+  const info = db.prepare(`
+    INSERT INTO checklists (title, description, type, order_index, is_required, active)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    title.trim(),
+    description?.trim() ?? null,
+    type ?? 'opening',
+    order_index ?? 0,
+    is_required ?? 1,
+    active ?? 1
+  )
+
+  const created = db.prepare('SELECT * FROM checklists WHERE id = ?').get(info.lastInsertRowid)
+  res.status(201).json(created)
+})
+
+// PUT /api/checklists/:id — update a checklist definition
+router.put('/:id', (req, res) => {
+  const { id } = req.params
+  const existing = db.prepare('SELECT * FROM checklists WHERE id = ?').get(id)
+  if (!existing) return res.status(404).json({ error: 'Checklist definition not found.' })
+
+  const { title, description, type, order_index, is_required, active } = req.body
+
+  db.prepare(`
+    UPDATE checklists SET
+      title = ?, description = ?, type = ?, order_index = ?, is_required = ?, active = ?
+    WHERE id = ?
+  `).run(
+    title !== undefined ? title.trim() : existing.title,
+    description !== undefined ? description?.trim() ?? null : existing.description,
+    type !== undefined ? type : existing.type,
+    order_index !== undefined ? order_index : existing.order_index,
+    is_required !== undefined ? is_required : existing.is_required,
+    active !== undefined ? active : existing.active,
+    id
+  )
+
+  res.json(db.prepare('SELECT * FROM checklists WHERE id = ?').get(id))
+})
+
+// DELETE /api/checklists/:id — deactivate or delete a checklist definition
+router.delete('/:id', (req, res) => {
+  const { id } = req.params
+  const existing = db.prepare('SELECT * FROM checklists WHERE id = ?').get(id)
+  if (!existing) return res.status(404).json({ error: 'Checklist definition not found.' })
+
+  // Soft delete if there are completions, hard delete otherwise? 
+  // For safety, let's just deactivate.
+  db.prepare("UPDATE checklists SET active = 0 WHERE id = ?").run(id)
+  res.json({ message: `Checklist item "${existing.title}" deactivated.` })
+})
+
 module.exports = router

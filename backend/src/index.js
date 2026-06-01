@@ -13,6 +13,7 @@ const notificationsRouter= require('./routes/notifications')
 const auditRouter        = require('./routes/audit')
 const reportsRouter          = require('./routes/reports')
 const refillSchedulesRouter  = require('./routes/refillSchedules')
+const taskTemplatesRouter    = require('./routes/taskTemplates')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -20,7 +21,10 @@ const PORT = process.env.PORT || 3001
 // ── Middleware ─────────────────────────────────────────────────────────────
 
 app.use(cors({
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : [
+    'http://localhost:5173', 'http://127.0.0.1:5173',
+    'http://localhost:5174', 'http://127.0.0.1:5174',
+  ],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
@@ -55,6 +59,7 @@ app.use('/api/notifications', notificationsRouter)
 app.use('/api/audit',         auditRouter)
 app.use('/api/reports',           reportsRouter)
 app.use('/api/refill-schedules',  refillSchedulesRouter)
+app.use('/api/task-templates',    taskTemplatesRouter)
 
 // ── 404 handler ────────────────────────────────────────────────────────────
 

@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { getTasks, getStaff, createTask, updateTask, updateTaskStatus, deleteTask, createAuditLog } from '../services/api'
+import { getTasks, getStaff, createTask, updateTask, updateTaskStatus, deleteTask, createAuditLog, getTaskTemplates } from '../services/api'
 import Toast from '../components/Toast'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
 import { getRecurrenceLabel } from '../utils/recurrence'
-import { TASK_TEMPLATES, TEMPLATE_CATEGORIES } from '../data/taskTemplates'
 
 const DEPARTMENTS = [
   'Sales', 'Purchase', 'Stock Audit', 'RGHS', 'Customer Support',
@@ -78,7 +77,7 @@ const inputCls =
 
 // ── Template Picker ──────────────────────────────────────────────────────────
 
-function TemplatePicker({ onSelect, selectedId }) {
+function TemplatePicker({ onSelect, selectedId, templates = [] }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const ref = useRef(null)
@@ -92,16 +91,17 @@ function TemplatePicker({ onSelect, selectedId }) {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return TASK_TEMPLATES.filter(
-      (t) => t.title.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)
+    return templates.filter(
+      (t) => t.title.toLowerCase().includes(q) || (t.category || '').toLowerCase().includes(q)
     )
-  }, [search])
+  }, [search, templates])
 
   const byCategory = useMemo(() => {
     const map = {}
     filtered.forEach((t) => {
-      if (!map[t.category]) map[t.category] = []
-      map[t.category].push(t)
+      const cat = t.category || 'Uncategorized'
+      if (!map[cat]) map[cat] = []
+      map[cat].push(t)
     })
     return map
   }, [filtered])
@@ -273,7 +273,7 @@ function RecurrenceSection({ form, setForm }) {
 
 // ── Task Modal ───────────────────────────────────────────────────────────────
 
-function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList, activeStaffList }) {
+function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList, activeStaffList, templates = [] }) {
   const handle = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }))
 
   useEffect(() => {
@@ -290,9 +290,9 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList, a
     setForm((p) => ({
       ...p,
       title: tpl.title,
-      description: tpl.description,
-      category: tpl.category,
-      priority: tpl.priority,
+      description: tpl.description || '',
+      category: tpl.category || '',
+      priority: tpl.priority || 'medium',
       template_id: tpl.id,
     }))
   }
@@ -312,7 +312,7 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList, a
 
         <div className="space-y-4">
           {/* Template picker */}
-          <TemplatePicker onSelect={applyTemplate} selectedId={form.template_id} />
+          <TemplatePicker onSelect={applyTemplate} selectedId={form.template_id} templates={templates} />
 
           <div>
             <label className="text-slate-600 text-xs font-medium block mb-1.5">Title *</label>
@@ -484,6 +484,7 @@ export default function Tasks() {
 
   const [tasks, setTasks] = useState([])
   const [staffList, setStaffList] = useState([])
+  const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -503,9 +504,14 @@ export default function Tasks() {
   const load = useCallback(async () => {
     try {
       setLoading(true)
-      const [tasksData, staffData] = await Promise.all([getTasks(), getStaff()])
+      const [tasksData, staffData, templatesData] = await Promise.all([
+        getTasks(),
+        getStaff(),
+        getTaskTemplates(true)
+      ])
       setTasks(tasksData)
       setStaffList(staffData)
+      setTemplates(templatesData)
       setError(null)
     } catch (e) {
       setError(e.message)
@@ -960,6 +966,7 @@ export default function Tasks() {
           saving={saving}
           staffList={staffList}
           activeStaffList={activeStaffList}
+          templates={templates}
         />
       )}
       {editTarget && (
@@ -972,6 +979,7 @@ export default function Tasks() {
           saving={saving}
           staffList={staffList}
           activeStaffList={activeStaffList}
+          templates={templates}
         />
       )}
       {deleteTarget && (

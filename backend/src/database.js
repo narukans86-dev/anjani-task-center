@@ -53,11 +53,26 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS checklists (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     title       TEXT NOT NULL,
+    description TEXT,
     type        TEXT DEFAULT 'opening',
     is_default  INTEGER DEFAULT 1,
+    is_required INTEGER DEFAULT 1,
     order_index INTEGER DEFAULT 0,
     active      INTEGER DEFAULT 1,
     created_at  TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS task_templates (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    title        TEXT NOT NULL,
+    description  TEXT,
+    category     TEXT,
+    priority     TEXT DEFAULT 'medium',
+    department   TEXT,
+    assigned_to  INTEGER,
+    active       INTEGER DEFAULT 1,
+    created_at   TEXT DEFAULT (datetime('now')),
+    updated_at   TEXT DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS checklist_completions (
@@ -131,6 +146,14 @@ db.exec(`
 
 // ── Migrations: add new columns if they don't exist ────────────────────────
 
+const checklistCols = db.prepare("PRAGMA table_info(checklists)").all().map((c) => c.name)
+if (!checklistCols.includes('description')) {
+  db.prepare('ALTER TABLE checklists ADD COLUMN description TEXT').run()
+}
+if (!checklistCols.includes('is_required')) {
+  db.prepare('ALTER TABLE checklists ADD COLUMN is_required INTEGER DEFAULT 1').run()
+}
+
 const taskCols = db.prepare("PRAGMA table_info(tasks)").all().map((c) => c.name)
 const addTaskCol = (col, def) => {
   if (!taskCols.includes(col)) {
@@ -148,6 +171,36 @@ addTaskCol('patient_schedule_id','INTEGER')
 addTaskCol('generated_from',     'TEXT')
 addTaskCol('refill_cycle_key',   'TEXT')
 addTaskCol('workflow_step',      'TEXT')
+
+// task_templates seed
+const templateCount = db.prepare('SELECT COUNT(*) AS n FROM task_templates').get().n
+if (templateCount === 0) {
+  const TASK_TEMPLATES_SEED = [
+    { title: 'Check high-demand product display', category: 'Sales', priority: 'medium', description: 'Verify all high-demand products are properly displayed and stocked at counter.' },
+    { title: 'Follow up pending customer orders', category: 'Sales', priority: 'high', description: 'Call customers with pending/ready orders for pickup.' },
+    { title: 'Review near-short products', category: 'Purchase', priority: 'high', description: 'Identify products below minimum stock level and add to purchase list.' },
+    { title: 'Prepare supplier purchase list', category: 'Purchase', priority: 'medium', description: "Compile final purchase order list for today's supplier call." },
+    { title: 'Audit selected rack/shelf', category: 'Stock Audit', priority: 'medium', description: 'Physical count of assigned rack. Report mismatches.' },
+    { title: 'Check pending RGHS prescriptions', category: 'RGHS', priority: 'critical', description: 'Review all pending RGHS prescriptions for OPD date, seal, and doctor signature.' },
+    { title: 'Track unpaid RGHS bills', category: 'RGHS', priority: 'high', description: 'Check status of submitted RGHS bills and follow up on unpaid claims.' },
+    { title: 'Pack and dispatch online orders', category: 'Delivery', priority: 'high', description: 'Pack all confirmed online orders and hand over to delivery partner.' },
+    { title: 'Check near-expiry stock', category: 'Expiry Return', priority: 'critical', description: 'Identify products expiring within 60 days and flag for return.' },
+    { title: 'Prepare supplier return list', category: 'Expiry Return', priority: 'high', description: 'Compile expiry return items with batch/quantity for supplier.' },
+    { title: 'Daily cash handover', category: 'Admin', priority: 'critical', description: 'Count, verify, and hand over daily cash to manager with slip.' },
+    { title: 'Daily issue report to manager', category: 'Admin', priority: 'medium', description: "Submit summary of today's issues, complaints, and pending items." },
+    { title: 'Refrigerator temperature check', category: 'Cleaning / Store Maintenance', priority: 'high', description: 'Record fridge temperature. Escalate if outside normal range.' },
+    { title: 'Morning store cleaning verification', category: 'Cleaning / Store Maintenance', priority: 'medium', description: 'Confirm all areas cleaned before store opens.' },
+  ]
+
+  const insertTpl = db.prepare(
+    'INSERT INTO task_templates (title, category, priority, description) VALUES (?, ?, ?, ?)'
+  )
+  const seedTemplates = db.transaction(() => {
+    TASK_TEMPLATES_SEED.forEach((t) => insertTpl.run(t.title, t.category, t.priority, t.description))
+  })
+  seedTemplates()
+  console.log('[DB] Seeded 14 task templates.')
+}
 
 // notifications dedup key
 const notifCols = db.prepare("PRAGMA table_info(notifications)").all().map((c) => c.name)

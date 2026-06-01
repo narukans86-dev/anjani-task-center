@@ -31,11 +31,21 @@ export const deleteTask = (id) => req(`/tasks/${id}`, { method: 'DELETE' })
 // ── Checklists ─────────────────────────────────────────────────────────────
 export const getChecklists = (type) => req(`/checklists${type ? `?type=${type}` : ''}`)
 export const getTodayChecklists = () => req('/checklists/today')
+export const createChecklist = (data) => req('/checklists', { method: 'POST', body: JSON.stringify(data) })
+export const updateChecklist = (id, data) => req(`/checklists/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteChecklist = (id) => req(`/checklists/${id}`, { method: 'DELETE' })
+
 export const completeChecklistItem = (checklist_id, staff_id, notes) =>
   req('/checklists/complete', { method: 'POST', body: JSON.stringify({ checklist_id, staff_id, notes }) })
 export const uncompleteChecklistItem = (completionId) =>
   req(`/checklists/complete/${completionId}`, { method: 'DELETE' })
 export const getChecklistStats = () => req('/checklists/stats')
+
+// ── Task Templates ─────────────────────────────────────────────────────────
+export const getTaskTemplates = (activeOnly = false) => req(`/task-templates${activeOnly ? '?active=true' : ''}`)
+export const createTaskTemplate = (data) => req('/task-templates', { method: 'POST', body: JSON.stringify(data) })
+export const updateTaskTemplate = (id, data) => req(`/task-templates/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteTaskTemplate = (id) => req(`/task-templates/${id}`, { method: 'DELETE' })
 
 // ── Notifications ──────────────────────────────────────────────────────────
 export const getNotifications = () => req('/notifications')
