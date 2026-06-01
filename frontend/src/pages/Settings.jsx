@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import AccessDenied from './AccessDenied'
 import { useToast } from '../components/ui/Toast'
@@ -31,6 +31,60 @@ const TABS = [
   { id: 'refill',     label: 'Refill Scheduler' },
   { id: 'about',      label: 'About' },
 ]
+
+// ── Error boundary ─────────────────────────────────────────────────────────────
+
+class TabErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error, info) {
+    console.error('Settings tab error:', error, info)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="text-red-600 font-semibold text-sm mb-1">Something went wrong in this tab.</p>
+          <p className="text-red-500 text-xs mb-4">{this.state.error?.message}</p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+// ── API error banner ───────────────────────────────────────────────────────────
+
+function ApiErrorBox({ message, onRetry }) {
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center justify-between mb-4">
+      <div>
+        <p className="text-red-600 text-sm font-medium">Failed to load data</p>
+        <p className="text-red-500 text-xs mt-0.5">{message}</p>
+      </div>
+      <button
+        onClick={onRetry}
+        className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors ml-4 shrink-0"
+      >
+        Retry
+      </button>
+    </div>
+  )
+}
 
 // ── Shared UI primitives ───────────────────────────────────────────────────────
 
@@ -226,21 +280,23 @@ function GeneralTab({ settings, onChange, onSave, saving }) {
 // ── Tab: Categories & Departments ─────────────────────────────────────────────
 
 function CategoriesTab({ settings, onChange, onSave, saving }) {
+  const categories = Array.isArray(settings.defaultCategories) ? settings.defaultCategories : []
+  const departments = Array.isArray(settings.defaultDepartments) ? settings.defaultDepartments : []
   return (
     <>
       <Section title="Task Categories">
         <TagList
-          items={settings.defaultCategories}
-          onRemove={(item) => onChange('defaultCategories', settings.defaultCategories.filter((c) => c !== item))}
-          onAdd={(item) => onChange('defaultCategories', [...settings.defaultCategories, item])}
+          items={categories}
+          onRemove={(item) => onChange('defaultCategories', categories.filter((c) => c !== item))}
+          onAdd={(item) => onChange('defaultCategories', [...categories, item])}
           placeholder="Add category…"
         />
       </Section>
       <Section title="Departments">
         <TagList
-          items={settings.defaultDepartments}
-          onRemove={(item) => onChange('defaultDepartments', settings.defaultDepartments.filter((d) => d !== item))}
-          onAdd={(item) => onChange('defaultDepartments', [...settings.defaultDepartments, item])}
+          items={departments}
+          onRemove={(item) => onChange('defaultDepartments', departments.filter((d) => d !== item))}
+          onAdd={(item) => onChange('defaultDepartments', [...departments, item])}
           placeholder="Add department…"
         />
       </Section>
@@ -412,6 +468,7 @@ function ChecklistDefsTab() {
   const { showToast } = useToast()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [editItem, setEditItem] = useState(null)
   const [form, setForm] = useState({ title: '', description: '', type: 'opening', order_index: 0, is_required: 1, active: 1 })
@@ -419,14 +476,15 @@ function ChecklistDefsTab() {
   const load = useCallback(async () => {
     try {
       setLoading(true)
+      setLoadError(null)
       const data = await getChecklists()
-      setItems(data)
+      setItems(Array.isArray(data) ? data : [])
     } catch (e) {
-      showToast('Failed to load checklists', 'error')
+      setLoadError(e.message || 'Failed to load checklists')
     } finally {
       setLoading(false)
     }
-  }, [showToast])
+  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -510,9 +568,10 @@ function ChecklistDefsTab() {
       </Section>
 
       <Section title="Current Checklist Definitions">
+        {loadError && <ApiErrorBox message={loadError} onRetry={load} />}
         {loading ? (
           <p className="text-slate-400 text-sm">Loading...</p>
-        ) : (
+        ) : !loadError && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -557,6 +616,7 @@ function TaskTemplatesTab() {
   const [templates, setTemplates] = useState([])
   const [staff, setStaff] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [editTpl, setEditTpl] = useState(null)
   const [form, setForm] = useState({ title: '', description: '', category: '', priority: 'medium', department: '', assigned_to: '', active: 1 })
@@ -564,15 +624,16 @@ function TaskTemplatesTab() {
   const load = useCallback(async () => {
     try {
       setLoading(true)
+      setLoadError(null)
       const [tpls, stf] = await Promise.all([getTaskTemplates(), getStaff()])
-      setTemplates(tpls)
-      setStaff(stf)
+      setTemplates(Array.isArray(tpls) ? tpls : [])
+      setStaff(Array.isArray(stf) ? stf : [])
     } catch (e) {
-      showToast('Failed to load templates', 'error')
+      setLoadError(e.message || 'Failed to load templates')
     } finally {
       setLoading(false)
     }
-  }, [showToast])
+  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -667,9 +728,10 @@ function TaskTemplatesTab() {
       </Section>
 
       <Section title="Current Task Templates">
+        {loadError && <ApiErrorBox message={loadError} onRetry={load} />}
         {loading ? (
           <p className="text-slate-400 text-sm">Loading...</p>
-        ) : (
+        ) : !loadError && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -1071,14 +1133,24 @@ function RefillSchedulerTab({ settings, onChange, onSave, saving }) {
 
 // ── Main Settings page ─────────────────────────────────────────────────────────
 
+const LS_TAB_KEY = 'anjani_settings_active_tab'
+
 export default function Settings() {
   const { hasPermission } = useAuth()
-  if (!hasPermission('access_settings')) return <AccessDenied />
-
-  const [activeTab, setActiveTab] = useState('general')
+  const [activeTab, setActiveTab] = useState(() => {
+    const stored = localStorage.getItem(LS_TAB_KEY)
+    return TABS.some((t) => t.id === stored) ? stored : 'general'
+  })
   const [settings, setSettings] = useState(() => getSettings())
   const [saving, setSaving] = useState(false)
   const { showToast } = useToast()
+
+  if (!hasPermission('access_settings')) return <AccessDenied />
+
+  function handleTabChange(id) {
+    setActiveTab(id)
+    localStorage.setItem(LS_TAB_KEY, id)
+  }
 
   function handleChange(key, value) {
     setSettings((prev) => ({ ...prev, [key]: value }))
@@ -1104,11 +1176,11 @@ export default function Settings() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 mb-6 bg-white border border-[#D1DCF0] rounded-xl p-1 shadow-sm">
+      <div className="flex gap-1 mb-6 bg-white border border-[#D1DCF0] rounded-xl p-1 shadow-sm flex-wrap">
         {TABS.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
             className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
               activeTab === tab.id
                 ? 'bg-[#F0F4FF] text-[#0A3D91] border-b-2 border-[#0A3D91] font-semibold'
@@ -1120,23 +1192,25 @@ export default function Settings() {
         ))}
       </div>
 
-      {activeTab === 'general' && (
-        <GeneralTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
-      )}
-      {activeTab === 'categories' && (
-        <CategoriesTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
-      )}
-      {activeTab === 'checklist_defs' && <ChecklistDefsTab />}
-      {activeTab === 'task_templates' && <TaskTemplatesTab />}
-      {activeTab === 'daily_routine_templates' && <DailyRoutineTemplatesTab />}
-      {activeTab === 'backup' && <BackupTab />}
-      {activeTab === 'notifications' && (
-        <NotificationsTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
-      )}
-      {activeTab === 'refill' && (
-        <RefillSchedulerTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
-      )}
-      {activeTab === 'about' && <AboutTab />}
+      <TabErrorBoundary key={activeTab}>
+        {activeTab === 'general' && (
+          <GeneralTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
+        )}
+        {activeTab === 'categories' && (
+          <CategoriesTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
+        )}
+        {activeTab === 'checklist_defs' && <ChecklistDefsTab />}
+        {activeTab === 'task_templates' && <TaskTemplatesTab />}
+        {activeTab === 'daily_routine_templates' && <DailyRoutineTemplatesTab />}
+        {activeTab === 'backup' && <BackupTab />}
+        {activeTab === 'notifications' && (
+          <NotificationsTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
+        )}
+        {activeTab === 'refill' && (
+          <RefillSchedulerTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
+        )}
+        {activeTab === 'about' && <AboutTab />}
+      </TabErrorBoundary>
     </div>
   )
 }
@@ -1148,6 +1222,7 @@ function DailyRoutineTemplatesTab() {
   const [templates, setTemplates] = useState([])
   const [staff, setStaff] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [editTpl, setEditTpl] = useState(null)
   const [form, setForm] = useState({
@@ -1159,15 +1234,16 @@ function DailyRoutineTemplatesTab() {
   const load = useCallback(async () => {
     try {
       setLoading(true)
+      setLoadError(null)
       const [tpls, stf] = await Promise.all([getDailyRoutineTemplates(), getStaff()])
-      setTemplates(tpls)
-      setStaff(stf)
+      setTemplates(Array.isArray(tpls) ? tpls : [])
+      setStaff(Array.isArray(stf) ? stf : [])
     } catch (e) {
-      showToast('Failed to load routine templates', 'error')
+      setLoadError(e.message || 'Failed to load routine templates')
     } finally {
       setLoading(false)
     }
-  }, [showToast])
+  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -1303,9 +1379,10 @@ function DailyRoutineTemplatesTab() {
       </Section>
 
       <Section title="Current Daily Routine Templates">
+        {loadError && <ApiErrorBox message={loadError} onRetry={load} />}
         {loading ? (
           <p className="text-slate-400 text-sm">Loading...</p>
-        ) : (
+        ) : !loadError && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
