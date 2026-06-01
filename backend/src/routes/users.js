@@ -99,28 +99,37 @@ router.put('/:id', requireAdmin, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id)
   if (!user) return res.status(404).json({ error: 'User not found.' })
 
-  const { display_name, role, staff_id, mobile_number, email, must_change_password } = req.body || {}
+  const { display_name, role, staff_id, mobile_number, whatsapp_number, email, notification_preference, must_change_password } = req.body || {}
   if (role && !['admin', 'manager', 'staff', 'viewer'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role.' })
+  }
+
+  const VALID_PREFS = ['App', 'WhatsApp', 'Email', 'SMS', 'None']
+  if (notification_preference && !VALID_PREFS.includes(notification_preference)) {
+    return res.status(400).json({ error: 'Invalid notification preference.' })
   }
 
   const now = new Date().toISOString()
   db.prepare(`
     UPDATE users SET
-      display_name         = COALESCE(?, display_name),
-      role                 = COALESCE(?, role),
-      staff_id             = ?,
-      mobile_number        = COALESCE(?, mobile_number),
-      email                = COALESCE(?, email),
-      must_change_password = COALESCE(?, must_change_password),
-      updated_at           = ?
+      display_name            = COALESCE(?, display_name),
+      role                    = COALESCE(?, role),
+      staff_id                = ?,
+      mobile_number           = COALESCE(?, mobile_number),
+      whatsapp_number         = COALESCE(?, whatsapp_number),
+      email                   = COALESCE(?, email),
+      notification_preference = COALESCE(?, notification_preference),
+      must_change_password    = COALESCE(?, must_change_password),
+      updated_at              = ?
     WHERE id = ?
   `).run(
     display_name?.trim() || null,
     role || null,
     staff_id !== undefined ? (staff_id || null) : user.staff_id,
     mobile_number?.trim() || null,
+    whatsapp_number?.trim() || null,
     email?.trim() || null,
+    notification_preference || null,
     must_change_password !== undefined ? (must_change_password ? 1 : 0) : null,
     now,
     user.id,

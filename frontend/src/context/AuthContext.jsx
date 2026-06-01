@@ -8,6 +8,8 @@ import {
 } from '../services/auth'
 import { hasPermission as checkPermission } from '../services/permissions'
 
+const STORAGE_KEY = 'anjani_user'
+
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
@@ -53,6 +55,31 @@ export function AuthProvider({ children }) {
     [user],
   )
 
+  const updateProfile = useCallback(async (data) => {
+    const stored = getCurrentUser()
+    if (!stored?.token) return { success: false, error: 'Not authenticated.' }
+
+    try {
+      const res = await fetch('/api/auth/me/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${stored.token}`,
+        },
+        body: JSON.stringify(data),
+      })
+      const responseData = await res.json()
+      if (!res.ok) return { success: false, error: responseData.error || 'Failed to update profile.' }
+
+      const updatedUser = { ...stored, ...responseData.user, token: stored.token }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser))
+      setUser(updatedUser)
+      return { success: true, user: updatedUser }
+    } catch {
+      return { success: false, error: 'Server error. Please try again.' }
+    }
+  }, [])
+
   return (
     <AuthContext.Provider
       value={{
@@ -60,6 +87,7 @@ export function AuthProvider({ children }) {
         login,
         logout,
         changePassword,
+        updateProfile,
         isAuthenticated: user !== null,
         hasPermission,
         loading,

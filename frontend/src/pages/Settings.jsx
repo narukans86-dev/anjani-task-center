@@ -780,7 +780,8 @@ const ROLE_COLORS = {
   viewer:  'bg-slate-50 text-slate-600 border-slate-200',
 }
 
-const EMPTY_USER_FORM = { username: '', display_name: '', password: '', role: 'staff', staff_id: '', mobile_number: '', email: '' }
+const NOTIF_PREFS = ['App', 'WhatsApp', 'Email', 'SMS', 'None']
+const EMPTY_USER_FORM = { username: '', display_name: '', password: '', role: 'staff', staff_id: '', mobile_number: '', whatsapp_number: '', email: '', notification_preference: 'App' }
 
 function UsersTab() {
   const { user: me } = useAuth()
@@ -824,13 +825,15 @@ function UsersTab() {
   function openEdit(u) {
     setEditUser(u)
     setForm({
-      username:     u.username,
-      display_name: u.display_name || '',
-      password:     '',
-      role:         u.role,
-      staff_id:     u.staff_id ?? '',
-      mobile_number: u.mobile_number || '',
-      email:        u.email || '',
+      username:               u.username,
+      display_name:           u.display_name || '',
+      password:               '',
+      role:                   u.role,
+      staff_id:               u.staff_id ?? '',
+      mobile_number:          u.mobile_number || '',
+      whatsapp_number:        u.whatsapp_number || '',
+      email:                  u.email || '',
+      notification_preference: u.notification_preference || 'App',
     })
     setShowForm(true)
   }
@@ -850,11 +853,13 @@ function UsersTab() {
     setSaving(true)
     try {
       const payload = {
-        display_name:  form.display_name.trim() || form.username.trim(),
-        role:          form.role,
-        staff_id:      form.staff_id === '' ? null : parseInt(form.staff_id),
-        mobile_number: form.mobile_number.trim() || null,
-        email:         form.email.trim() || null,
+        display_name:           form.display_name.trim() || form.username.trim(),
+        role:                   form.role,
+        staff_id:               form.staff_id === '' ? null : parseInt(form.staff_id),
+        mobile_number:          form.mobile_number.trim() || null,
+        whatsapp_number:        form.whatsapp_number.trim() || null,
+        email:                  form.email.trim() || null,
+        notification_preference: form.notification_preference || 'App',
         ...(editUser ? {} : { username: form.username.trim(), password: form.password }),
       }
       if (editUser) {
@@ -975,10 +980,21 @@ function UsersTab() {
                 onChange={e => setForm({ ...form, mobile_number: e.target.value })}
                 placeholder="Mobile number" />
             </Field>
+            <Field label="WhatsApp">
+              <Input value={form.whatsapp_number}
+                onChange={e => setForm({ ...form, whatsapp_number: e.target.value })}
+                placeholder="WhatsApp number" />
+            </Field>
             <Field label="Email">
               <Input value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
                 placeholder="Email address" />
+            </Field>
+            <Field label="Notification Preference">
+              <Select value={form.notification_preference}
+                onChange={e => setForm({ ...form, notification_preference: e.target.value })}>
+                {NOTIF_PREFS.map(p => <option key={p} value={p}>{p}</option>)}
+              </Select>
             </Field>
           </div>
           <div className="flex gap-2">

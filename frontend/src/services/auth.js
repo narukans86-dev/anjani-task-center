@@ -54,6 +54,11 @@ export function getCurrentUser() {
       localStorage.removeItem(KEY)
       return null
     }
+    // Sessions without a token are from before token-based auth — force re-login
+    if (!user.token) {
+      localStorage.removeItem(KEY)
+      return null
+    }
     return user
   } catch {
     localStorage.removeItem(KEY)

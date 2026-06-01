@@ -251,6 +251,15 @@ if (!notifCols.includes('related_schedule_id')) {
   db.prepare('ALTER TABLE notifications ADD COLUMN related_schedule_id INTEGER').run()
 }
 
+// users table — add new profile columns if missing
+const userColNames = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name)
+if (!userColNames.includes('whatsapp_number')) {
+  db.prepare('ALTER TABLE users ADD COLUMN whatsapp_number TEXT').run()
+}
+if (!userColNames.includes('notification_preference')) {
+  db.prepare("ALTER TABLE users ADD COLUMN notification_preference TEXT DEFAULT 'App'").run()
+}
+
 const staffCols = db.prepare("PRAGMA table_info(staff)").all().map((c) => c.name)
 const addIfMissing = (col, def) => {
   if (!staffCols.includes(col)) {

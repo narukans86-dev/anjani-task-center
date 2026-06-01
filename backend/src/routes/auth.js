@@ -110,6 +110,70 @@ router.get('/me', (req, res) => {
   })
 })
 
+// PUT /api/auth/me/profile — update own profile
+router.put('/me/profile', (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '').trim()
+  if (!token) return res.status(401).json({ error: 'Not authenticated.' })
+
+  const user = db.prepare('SELECT * FROM users WHERE session_token = ? AND status = ?').get(token, 'active')
+  if (!user) return res.status(401).json({ error: 'Session expired. Please log in again.' })
+
+  const { display_name, mobile_number, whatsapp_number, email, notification_preference } = req.body || {}
+
+  if (display_name !== undefined && !(display_name || '').trim()) {
+    return res.status(400).json({ error: 'Display name cannot be empty.' })
+  }
+
+  if (email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    return res.status(400).json({ error: 'Invalid email format.' })
+  }
+
+  const VALID_PREFS = ['App', 'WhatsApp', 'Email', 'SMS', 'None']
+  if (notification_preference && !VALID_PREFS.includes(notification_preference)) {
+    return res.status(400).json({ error: 'Invalid notification preference.' })
+  }
+
+  const now = new Date().toISOString()
+  db.prepare(`
+    UPDATE users SET
+      display_name            = ?,
+      mobile_number           = ?,
+      whatsapp_number         = ?,
+      email                   = ?,
+      notification_preference = ?,
+      updated_at              = ?
+    WHERE id = ?
+  `).run(
+    (display_name || '').trim() || user.display_name,
+    (mobile_number || '').trim() || null,
+    (whatsapp_number || '').trim() || null,
+    (email || '').trim() || null,
+    notification_preference || user.notification_preference || 'App',
+    now,
+    user.id,
+  )
+
+  const updated = db.prepare(`
+    SELECT u.*, s.name AS staff_name
+    FROM users u
+    LEFT JOIN staff s ON s.id = u.staff_id
+    WHERE u.id = ?
+  `).get(user.id)
+
+  writeAudit('profile_updated', updated.id, updated.display_name,
+    `User '${updated.username}' updated their profile`)
+
+  res.json({
+    user: {
+      ...sanitize(updated),
+      name: updated.display_name || updated.username,
+      staffId: updated.staff_id,
+      staffName: updated.staff_name ?? null,
+      mustChangePassword: updated.must_change_password === 1,
+    },
+  })
+})
+
 // POST /api/auth/change-password
 router.post('/change-password', (req, res) => {
   const token = (req.headers.authorization || '').replace('Bearer ', '').trim()

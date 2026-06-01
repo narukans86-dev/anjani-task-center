@@ -92,6 +92,10 @@ export const createDailyRoutineTemplate = (data) => req('/daily-routine/template
 export const updateDailyRoutineTemplate = (id, data) => req(`/daily-routine/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteDailyRoutineTemplate = (id) => req(`/daily-routine/templates/${id}`, { method: 'DELETE' })
 
+// ── My Profile ────────────────────────────────────────────────────────────
+export const getMe            = ()     => req('/auth/me')
+export const updateMyProfile  = (data) => req('/auth/me/profile', { method: 'PUT', body: JSON.stringify(data) })
+
 // ── Users & Roles (admin) ──────────────────────────────────────────────────
 export const getUsers          = ()            => req('/users')
 export const createUser        = (data)        => req('/users', { method: 'POST', body: JSON.stringify(data) })

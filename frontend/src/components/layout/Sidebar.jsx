@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import BrandLogo from '../BrandLogo'
 import { createAuditLog } from '../../services/api'
 import { ROUTE_ROLES, hasRole } from '../../services/permissions'
+import MyProfileModal from '../MyProfileModal'
 
 const NAV = [
   {
@@ -156,6 +158,7 @@ function initials(name = '') {
 
 export default function Sidebar({ open, onClose }) {
   const { user, logout } = useAuth()
+  const [showProfile, setShowProfile] = useState(false)
 
   const visibleNav = NAV.filter(({ routeKey }) => hasRole(user, ROUTE_ROLES[routeKey] ?? []))
 
@@ -229,18 +232,24 @@ export default function Sidebar({ open, onClose }) {
         <div className="px-4 py-4 border-t border-[#D1DCF0]">
           {user && (
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-blue-50 border border-[#D1DCF0] flex items-center justify-center text-[11px] font-bold text-[#0A3D91] shrink-0">
-                {initials(user.name)}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[#111827] text-xs font-semibold truncate">{user.name}</p>
-                <p className="text-slate-400 text-[10px] truncate">{ROLE_LABEL[user.role] ?? user.role}</p>
-              </div>
+              <button
+                onClick={() => setShowProfile(true)}
+                title="Edit my profile"
+                className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-lg hover:bg-blue-50 p-1 -m-1 transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-full bg-blue-50 border border-[#D1DCF0] flex items-center justify-center text-[11px] font-bold text-[#0A3D91] shrink-0 group-hover:border-[#0A3D91] transition-colors">
+                  {initials(user.name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[#111827] text-xs font-semibold truncate">{user.name}</p>
+                  <p className="text-slate-400 text-[10px] truncate">{ROLE_LABEL[user.role] ?? user.role}</p>
+                </div>
+              </button>
               <button
                 onClick={() => {
-                createAuditLog({ action: 'logout', entity_type: 'auth', entity_id: null, user_name: user?.name, details: `User '${user?.name}' logged out` }).catch(() => {})
-                logout()
-              }}
+                  createAuditLog({ action: 'logout', entity_type: 'auth', entity_id: null, user_name: user?.name, details: `User '${user?.name}' logged out` }).catch(() => {})
+                  logout()
+                }}
                 title="Sign out"
                 className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
               >
@@ -254,6 +263,8 @@ export default function Sidebar({ open, onClose }) {
             v1.0.0 &middot; Local Build &middot; Port 5173
           </p>
         </div>
+
+        {showProfile && <MyProfileModal onClose={() => setShowProfile(false)} />}
       </aside>
     </>
   )
