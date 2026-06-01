@@ -14,6 +14,7 @@ const auditRouter        = require('./routes/audit')
 const reportsRouter          = require('./routes/reports')
 const refillSchedulesRouter  = require('./routes/refillSchedules')
 const taskTemplatesRouter    = require('./routes/taskTemplates')
+const dailyRoutinesRouter     = require('./routes/dailyRoutines')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -60,6 +61,7 @@ app.use('/api/audit',         auditRouter)
 app.use('/api/reports',           reportsRouter)
 app.use('/api/refill-schedules',  refillSchedulesRouter)
 app.use('/api/task-templates',    taskTemplatesRouter)
+app.use('/api/daily-routine',     dailyRoutinesRouter)
 
 // ── 404 handler ────────────────────────────────────────────────────────────
 

@@ -9,6 +9,7 @@ import {
 import {
   getChecklists, createChecklist, updateChecklist, deleteChecklist,
   getTaskTemplates, createTaskTemplate, updateTaskTemplate, deleteTaskTemplate,
+  getDailyRoutineTemplates, createDailyRoutineTemplate, updateDailyRoutineTemplate, deleteDailyRoutineTemplate,
   createAuditLog, getStaff
 } from '../services/api'
 import {
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'categories', label: 'Categories & Departments' },
   { id: 'checklist_defs', label: 'Checklists' },
   { id: 'task_templates', label: 'Task Templates' },
+  { id: 'daily_routine_templates', label: 'Daily Routine' },
   { id: 'backup',     label: 'Backup & Data' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'refill',     label: 'Refill Scheduler' },
@@ -1126,6 +1128,7 @@ export default function Settings() {
       )}
       {activeTab === 'checklist_defs' && <ChecklistDefsTab />}
       {activeTab === 'task_templates' && <TaskTemplatesTab />}
+      {activeTab === 'daily_routine_templates' && <DailyRoutineTemplatesTab />}
       {activeTab === 'backup' && <BackupTab />}
       {activeTab === 'notifications' && (
         <NotificationsTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
@@ -1134,6 +1137,221 @@ export default function Settings() {
         <RefillSchedulerTab settings={settings} onChange={handleChange} onSave={handleSave} saving={saving} />
       )}
       {activeTab === 'about' && <AboutTab />}
+    </div>
+  )
+}
+// ── Tab: Daily Routine Templates ──────────────────────────────────────────────
+
+function DailyRoutineTemplatesTab() {
+  const { user } = useAuth()
+  const { showToast } = useToast()
+  const [templates, setTemplates] = useState([])
+  const [staff, setStaff] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [editTpl, setEditTpl] = useState(null)
+  const [form, setForm] = useState({
+    title: '', description: '', routine_type: 'Full Day', priority: 'medium',
+    staff_id: '', staff_role: '', department: '', expected_time: '',
+    estimated_minutes: '', is_required: 1, active: 1, display_order: 0
+  })
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true)
+      const [tpls, stf] = await Promise.all([getDailyRoutineTemplates(), getStaff()])
+      setTemplates(tpls)
+      setStaff(stf)
+    } catch (e) {
+      showToast('Failed to load routine templates', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  useEffect(() => { load() }, [load])
+
+  function startEdit(tpl) {
+    setEditTpl(tpl)
+    setForm({ 
+      ...tpl, 
+      staff_id: tpl.staff_id || '',
+      staff_role: tpl.staff_role || '',
+      department: tpl.department || '',
+      description: tpl.description || '',
+      expected_time: tpl.expected_time || '',
+      estimated_minutes: tpl.estimated_minutes || '',
+      display_order: tpl.display_order || 0
+    })
+  }
+
+  function cancelEdit() {
+    setEditTpl(null)
+    setForm({
+      title: '', description: '', routine_type: 'Full Day', priority: 'medium',
+      staff_id: '', staff_role: '', department: '', expected_time: '',
+      estimated_minutes: '', is_required: 1, active: 1, display_order: 0
+    })
+  }
+
+  async function handleSave() {
+    if (!form.title.trim()) return
+    setSaving(true)
+    try {
+      const payload = { 
+        ...form, 
+        staff_id: form.staff_id === '' ? null : parseInt(form.staff_id),
+        estimated_minutes: form.estimated_minutes === '' ? null : parseInt(form.estimated_minutes),
+        display_order: parseInt(form.display_order) || 0
+      }
+      if (editTpl) {
+        await updateDailyRoutineTemplate(editTpl.id, payload)
+        showToast('Routine template updated', 'success')
+        createAuditLog({ action: 'daily_routine_tpl_edited', entity_type: 'daily_routine_template', entity_id: editTpl.id, user_name: user?.name, details: `Routine template '${form.title}' updated` }).catch(() => {})
+      } else {
+        const created = await createDailyRoutineTemplate(payload)
+        showToast('Routine template added', 'success')
+        createAuditLog({ action: 'daily_routine_tpl_added', entity_type: 'daily_routine_template', entity_id: created.id, user_name: user?.name, details: `Routine template '${form.title}' added` }).catch(() => {})
+      }
+      cancelEdit()
+      await load()
+    } catch (e) {
+      showToast('Failed to save routine template', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(tpl) {
+    if (!window.confirm(`Deactivate routine item "${tpl.title}"?`)) return
+    try {
+      await deleteDailyRoutineTemplate(tpl.id)
+      showToast('Routine item deactivated', 'success')
+      createAuditLog({ action: 'daily_routine_tpl_deactivated', entity_type: 'daily_routine_template', entity_id: tpl.id, user_name: user?.name, details: `Routine template '${tpl.title}' deactivated` }).catch(() => {})
+      await load()
+    } catch (e) {
+      showToast('Failed to deactivate routine item', 'error')
+    }
+  }
+
+  const routineTypes = ['Morning', 'Afternoon', 'Evening', 'Full Day', 'Free Time', 'Custom']
+  const priorities = ['low', 'medium', 'high', 'critical']
+
+  return (
+    <div className="space-y-6">
+      <Section title={editTpl ? "Edit Routine Item" : "Add Routine Item"}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <Field label="Title *">
+            <Input value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} placeholder="e.g. Opening setup completed" />
+          </Field>
+          <Field label="Routine Type">
+            <Select value={form.routine_type} onChange={(e) => setForm({...form, routine_type: e.target.value})}>
+              {routineTypes.map(t => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          </Field>
+        </div>
+        
+        <Field label="Description">
+          <Input value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} placeholder="Optional details..." />
+        </Field>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+          <Field label="Assign to Staff">
+            <Select value={form.staff_id} onChange={(e) => setForm({...form, staff_id: e.target.value})}>
+              <option value="">-- None --</option>
+              {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Assign to Role">
+            <Input value={form.staff_role} onChange={(e) => setForm({...form, staff_role: e.target.value})} placeholder="e.g. Sales Manager" />
+          </Field>
+          <Field label="Department">
+            <Input value={form.department} onChange={(e) => setForm({...form, department: e.target.value})} placeholder="e.g. Sales" />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+          <Field label="Priority">
+            <Select value={form.priority} onChange={(e) => setForm({...form, priority: e.target.value})}>
+              {priorities.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+            </Select>
+          </Field>
+          <Field label="Expected Time">
+            <Input value={form.expected_time} onChange={(e) => setForm({...form, expected_time: e.target.value})} placeholder="e.g. Before 9 AM" />
+          </Field>
+          <Field label="Estimated Minutes">
+            <Input type="number" value={form.estimated_minutes} onChange={(e) => setForm({...form, estimated_minutes: e.target.value})} placeholder="e.g. 15" />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+          <Field label="Display Order">
+            <Input type="number" value={form.display_order} onChange={(e) => setForm({...form, display_order: e.target.value})} />
+          </Field>
+          <div className="flex items-center gap-4 h-14">
+            <Toggle label="Required" checked={!!form.is_required} onChange={(e) => setForm({...form, is_required: e.target.checked ? 1 : 0})} />
+          </div>
+          <div className="flex items-center gap-4 h-14">
+            <Toggle label="Active" checked={!!form.active} onChange={(e) => setForm({...form, active: e.target.checked ? 1 : 0})} />
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-4">
+          <Btn onClick={handleSave} disabled={saving || !form.title.trim()}>{saving ? 'Saving...' : (editTpl ? 'Update' : 'Add Item')}</Btn>
+          {editTpl && <Btn variant="ghost" onClick={cancelEdit}>Cancel</Btn>}
+        </div>
+      </Section>
+
+      <Section title="Current Daily Routine Templates">
+        {loading ? (
+          <p className="text-slate-400 text-sm">Loading...</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#D1DCF0]">
+                  <th className="py-2 font-semibold">Title</th>
+                  <th className="py-2 font-semibold">Type</th>
+                  <th className="py-2 font-semibold">Assignee/Role</th>
+                  <th className="py-2 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#D1DCF0]">
+                {templates.map((tpl) => (
+                  <tr key={tpl.id} className={!tpl.active ? 'opacity-50' : ''}>
+                    <td className="py-3">
+                      <p className="font-medium">{tpl.title}</p>
+                      {tpl.description && <p className="text-xs text-slate-400">{tpl.description}</p>}
+                    </td>
+                    <td className="py-3 text-xs">
+                      <span className={`px-2 py-0.5 rounded-full ${tpl.routine_type === 'Free Time' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-blue-50 text-[#0A3D91] border border-blue-100'}`}>
+                        {tpl.routine_type}
+                      </span>
+                    </td>
+                    <td className="py-3 text-xs">
+                      {tpl.staff_id ? (
+                        <span className="font-medium text-[#0A3D91]">{staff.find(s => s.id === tpl.staff_id)?.name}</span>
+                      ) : tpl.staff_role ? (
+                        <span className="text-slate-500 italic">Role: {tpl.staff_role}</span>
+                      ) : tpl.department ? (
+                        <span className="text-slate-500 italic">Dept: {tpl.department}</span>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => startEdit(tpl)} className="text-blue-600 hover:underline">Edit</button>
+                        <button onClick={() => handleDelete(tpl)} className="text-red-600 hover:underline">Deactivate</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
     </div>
   )
 }

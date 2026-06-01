@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { getStaff, getDailyRoutineTemplates } from '../services/api'
 import {
   DAILY_ROUTINE_STAFF,
   FREE_TIME_PRIORITIES,
@@ -98,13 +99,74 @@ export default function DailyRoutine() {
   const today = routineDateKey()
   const storageKey = dailyRoutineStorageKey()
   const [state, setState] = useState(() => readDailyRoutineState())
+  
+  const [staffList, setStaffList] = useState([])
+  const [routineTemplates, setRoutineTemplates] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [apiError, setApiError] = useState(null)
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true)
+      const [stf, tpls] = await Promise.all([getStaff(), getDailyRoutineTemplates(true)])
+      setStaffList(Array.isArray(stf) ? stf : [])
+      setRoutineTemplates(Array.isArray(tpls) ? tpls : [])
+      setApiError(null)
+    } catch (err) {
+      console.error("Failed to load daily routine from API", err)
+      setApiError("Using offline fallback data")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  const processedStaff = useMemo(() => {
+    // If loading and no data, or API error, use static fallback
+    if ((loading && staffList.length === 0) || apiError || (staffList.length === 0 && !loading)) {
+      return DAILY_ROUTINE_STAFF
+    }
+
+    return staffList.map(s => {
+      const checklist = routineTemplates
+        .filter(t => 
+          t.routine_type !== 'Free Time' && (
+            t.staff_id === s.id || 
+            (t.staff_role && s.role && t.staff_role.toLowerCase() === s.role.toLowerCase()) || 
+            (t.department && s.department && t.department.toLowerCase() === s.department.toLowerCase())
+          )
+        )
+        .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+        .map(t => t.title)
+
+      return {
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        timing: s.timing || 'Shift timing not set',
+        responsibility: s.main_responsibility || 'Responsibilities not set',
+        checklist: checklist.length > 0 ? checklist : ['No routine items assigned']
+      }
+    })
+  }, [staffList, routineTemplates, loading, apiError])
+
+  const freeTimePriorities = useMemo(() => {
+    if ((loading && routineTemplates.length === 0) || apiError || (routineTemplates.filter(t => t.routine_type === 'Free Time').length === 0 && !loading)) {
+      return FREE_TIME_PRIORITIES
+    }
+    return routineTemplates
+      .filter(t => t.routine_type === 'Free Time')
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      .map(t => t.title)
+  }, [routineTemplates, loading, apiError])
 
   const visibleStaff = useMemo(() => {
     if (user?.role === 'staff') {
-      return DAILY_ROUTINE_STAFF.filter((staff) => staff.name === user.name)
+      return processedStaff.filter((staff) => staff.name === user.name)
     }
-    return DAILY_ROUTINE_STAFF
-  }, [user])
+    return processedStaff
+  }, [user, processedStaff])
 
   const canEditStaff = (staffName) => {
     if (user?.role === 'admin' || user?.role === 'manager') return true
@@ -147,8 +209,23 @@ export default function DailyRoutine() {
 
   const shiftFocus = getShiftFocus()
 
+  if (loading && staffList.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-8 h-8 border-2 border-[#0A3D91]/20 border-t-[#0A3D91] rounded-full animate-spin mb-4" />
+        <p className="text-slate-500 text-sm">Loading routine...</p>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6 overflow-x-hidden">
+      {apiError && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between">
+          <p className="text-amber-700 text-xs font-medium">{apiError}</p>
+          <button onClick={loadData} className="text-[#0A3D91] text-xs font-bold hover:underline">Retry</button>
+        </div>
+      )}
       <section className="rounded-2xl border border-[#D1DCF0] bg-white/90 p-4 sm:p-5 shadow-[0_14px_34px_rgba(10,61,145,0.07)]">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
           <div className="min-w-0">
@@ -213,7 +290,7 @@ export default function DailyRoutine() {
           <p className="text-slate-500 text-xs mt-0.5">General guidance only. This board is not tickable per staff.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          {FREE_TIME_PRIORITIES.map((item) => (
+          {freeTimePriorities.map((item) => (
             <div key={item} className="rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-3 text-sm font-medium text-[#111827]">
               {item}
             </div>

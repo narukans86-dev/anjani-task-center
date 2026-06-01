@@ -67,3 +67,15 @@ export const getStaffPerformanceReport = () => req('/reports/staff-performance')
 export const getDepartmentReport = () => req('/reports/department')
 export const getDailyReport = () => req('/reports/daily')
 export const getPriorityReport = () => req('/reports/priority')
+
+// ── Daily Routine Templates ────────────────────────────────────────────────
+export const getDailyRoutineTemplates = (activeOnly = false, type = null) => {
+  let url = `/daily-routine/templates${activeOnly ? '?active=true' : ''}`
+  if (type) {
+    url += `${activeOnly ? '&' : '?'}routine_type=${encodeURIComponent(type)}`
+  }
+  return req(url)
+}
+export const createDailyRoutineTemplate = (data) => req('/daily-routine/templates', { method: 'POST', body: JSON.stringify(data) })
+export const updateDailyRoutineTemplate = (id, data) => req(`/daily-routine/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+export const deleteDailyRoutineTemplate = (id) => req(`/daily-routine/templates/${id}`, { method: 'DELETE' })

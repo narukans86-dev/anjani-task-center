@@ -106,6 +106,25 @@ db.exec(`
     timestamp   TEXT DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS daily_routine_templates (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    staff_id          INTEGER,
+    staff_role        TEXT,
+    department        TEXT,
+    title             TEXT NOT NULL,
+    description       TEXT,
+    routine_type      TEXT DEFAULT 'Full Day',
+    priority          TEXT DEFAULT 'medium',
+    expected_time     TEXT,
+    estimated_minutes INTEGER,
+    is_required       INTEGER DEFAULT 1,
+    active            INTEGER DEFAULT 1,
+    display_order     INTEGER DEFAULT 0,
+    created_at        TEXT DEFAULT (datetime('now')),
+    updated_at        TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (staff_id) REFERENCES staff(id) ON DELETE SET NULL
+  );
+
   CREATE TABLE IF NOT EXISTS refill_schedules (
     id                          INTEGER PRIMARY KEY AUTOINCREMENT,
     patient_name                TEXT NOT NULL,
@@ -430,6 +449,52 @@ if (checklistCount === 0) {
 
   seedChecklists()
   console.log('[DB] Seeded default opening and closing checklists.')
+}
+
+// ── Seed default daily routine templates ───────────────────────────────────
+
+const routineTemplateCount = db.prepare('SELECT COUNT(*) AS n FROM daily_routine_templates').get().n
+
+if (routineTemplateCount === 0) {
+  const insertRt = db.prepare(`
+    INSERT INTO daily_routine_templates 
+    (staff_id, staff_role, title, routine_type, display_order) 
+    VALUES (?, ?, ?, ?, ?)
+  `)
+
+  const ROUTINE_SEED = [
+    { staff_id: 1, role: 'Opening + Counter Control', items: ['Opening setup completed before 9 AM', 'POS/printer/rack readiness checked', 'Shortage items noted during opening/low time', 'Rack discipline maintained', 'Counter delay avoided during rush', 'Near-stock-out items communicated to purchase', 'Opening area cleanliness checked'] },
+    { staff_id: 2, role: 'Opening + Customer Support', items: ['Pending orders checked', 'Minimum 20 customer follow-ups/messages/calls completed', 'Refill calls to regular chronic patients completed', 'Delivery follow-up updated', 'Customer pending status updated', 'Lost sales/customer demand noted', 'Low-time customer callback list completed'] },
+    { staff_id: 4, role: 'Sales Manager', items: ['Daily sales report prepared', 'Staff discipline checked', '10-15 high-value/repeat customer follow-ups completed', 'Lost sales reviewed', 'Floor supervision done during rush', 'RGHS bill/document checking reviewed', 'Average bill value improvement checked'] },
+    { staff_id: 5, role: 'Evening Counter + Closing Support', items: ['Evening pending orders followed', 'Late customer requirements recorded', 'Closing support completed', 'Next-day pending needs noted', 'Evening counter handled without delay', 'Rack/product arrangement checked before closing', 'Customer requirements after 8 PM noted'] },
+    { staff_id: 6, role: 'Purchase Manager', items: ['Purchase order prepared', 'Supplier rate comparison done before PO', 'Zero-stock prevention checked', 'Expiry replacement/claims tracked', 'Shortage list reviewed', 'Near-stock-out list checked', 'Supplier follow-up completed'] },
+    { staff_id: 3, role: 'Daily Accounts / Accountant', items: ['2 PM cash handover completed', 'Wholesaler updates completed', '9:45 PM final cash verification completed', 'Overtime verification completed', 'Account/cash mismatch noted if any', 'Pending bills/accounts reviewed', 'Closing account status updated'] },
+  ]
+
+  const FREE_TIME_SEED = [
+    'Pending customer order follow-up',
+    'Refill calls to regular chronic patients',
+    'Shortage and near-stock-out list',
+    'Purchase rate comparison before PO',
+    'Expiry and near-expiry checking',
+    'Random stock audit - 20 items/day',
+    'RGHS bill/document checking',
+    'Rack cleaning and product arrangement',
+  ]
+
+  const seedRoutine = db.transaction(() => {
+    ROUTINE_SEED.forEach(staff => {
+      staff.items.forEach((title, i) => {
+        insertRt.run(staff.staff_id, staff.role, title, 'Full Day', i + 1)
+      })
+    })
+    FREE_TIME_SEED.forEach((title, i) => {
+      insertRt.run(null, null, title, 'Free Time', i + 1)
+    })
+  })
+
+  seedRoutine()
+  console.log('[DB] Seeded default daily routine templates.')
 }
 
 module.exports = db
