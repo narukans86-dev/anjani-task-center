@@ -649,12 +649,16 @@ export default function Dashboard() {
     .sort(sortOperationalTasks)
     .slice(0, 6), [visibleAllTasks, today])
 
-  const staffPerformance = useMemo(() => staffList.map((staff) => {
+  const activeStaffList = useMemo(() => {
+    return staffList.filter((staff) => staff.status !== 'inactive')
+  }, [staffList])
+
+  const staffPerformance = useMemo(() => activeStaffList.map((staff) => {
     const assigned = allTasks.filter((task) => String(task.assigned_to) === String(staff.id))
     const completed = assigned.filter((task) => task.status === 'completed').length
     const percent = assigned.length > 0 ? Math.round((completed / assigned.length) * 100) : 0
     return { ...staff, total: assigned.length, completed, percent }
-  }).sort((a, b) => b.percent - a.percent || b.total - a.total || a.name.localeCompare(b.name)), [staffList, allTasks])
+  }).sort((a, b) => b.percent - a.percent || b.total - a.total || a.name.localeCompare(b.name)), [activeStaffList, allTasks])
 
   const urgentTasks = useMemo(() => visibleAllTasks
     .filter((task) => isOpenTask(task) && (isHighPriority(task) || isOverdue(task, today)))

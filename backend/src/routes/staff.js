@@ -20,13 +20,28 @@ router.get('/:id', (req, res) => {
 
 // POST /api/staff — create staff
 router.post('/', (req, res) => {
-  const { name, role, department, color, status, mobile_number, email, whatsapp_number, notification_preference } = req.body
+  const {
+    name,
+    role,
+    department,
+    color,
+    status,
+    mobile_number,
+    email,
+    whatsapp_number,
+    notification_preference,
+    timing,
+    main_responsibility,
+  } = req.body
   if (!name) return res.status(400).json({ error: 'name is required.' })
   if (!mobile_number) return res.status(400).json({ error: 'mobile_number is required.' })
   if (email && !email.includes('@')) return res.status(400).json({ error: 'Invalid email format.' })
 
   const info = db.prepare(
-    'INSERT INTO staff (name, role, department, color, status, mobile_number, email, whatsapp_number, notification_preference) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    `INSERT INTO staff (
+      name, role, department, color, status, mobile_number, email,
+      whatsapp_number, notification_preference, timing, main_responsibility
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     name.trim(),
     role?.trim() ?? null,
@@ -36,7 +51,9 @@ router.post('/', (req, res) => {
     mobile_number.trim(),
     email?.trim() ?? null,
     whatsapp_number?.trim() ?? null,
-    notification_preference ?? 'App'
+    notification_preference ?? 'App',
+    timing?.trim() ?? null,
+    main_responsibility?.trim() ?? null
   )
 
   const created = db.prepare('SELECT * FROM staff WHERE id = ?').get(info.lastInsertRowid)
@@ -49,11 +66,27 @@ router.put('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM staff WHERE id = ?').get(id)
   if (!existing) return res.status(404).json({ error: 'Staff member not found.' })
 
-  const { name, role, department, color, status, mobile_number, email, whatsapp_number, notification_preference } = req.body
+  const {
+    name,
+    role,
+    department,
+    color,
+    status,
+    mobile_number,
+    email,
+    whatsapp_number,
+    notification_preference,
+    timing,
+    main_responsibility,
+  } = req.body
   if (email && !email.includes('@')) return res.status(400).json({ error: 'Invalid email format.' })
 
   db.prepare(
-    'UPDATE staff SET name=?, role=?, department=?, color=?, status=?, mobile_number=?, email=?, whatsapp_number=?, notification_preference=? WHERE id=?'
+    `UPDATE staff SET
+      name=?, role=?, department=?, color=?, status=?, mobile_number=?,
+      email=?, whatsapp_number=?, notification_preference=?,
+      timing=?, main_responsibility=?
+    WHERE id=?`
   ).run(
     name !== undefined ? name.trim() : existing.name,
     role !== undefined ? role?.trim() ?? null : existing.role,
@@ -64,6 +97,8 @@ router.put('/:id', (req, res) => {
     email !== undefined ? email?.trim() ?? null : existing.email ?? null,
     whatsapp_number !== undefined ? whatsapp_number?.trim() ?? null : existing.whatsapp_number ?? null,
     notification_preference !== undefined ? notification_preference : existing.notification_preference ?? 'App',
+    timing !== undefined ? timing?.trim() ?? null : existing.timing ?? null,
+    main_responsibility !== undefined ? main_responsibility?.trim() ?? null : existing.main_responsibility ?? null,
     id
   )
 

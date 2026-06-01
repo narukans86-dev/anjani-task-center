@@ -117,6 +117,95 @@ addIfMissing('mobile_number', 'TEXT')
 addIfMissing('email', 'TEXT')
 addIfMissing('whatsapp_number', 'TEXT')
 addIfMissing('notification_preference', "TEXT DEFAULT 'App'")
+addIfMissing('timing', 'TEXT')
+addIfMissing('main_responsibility', 'TEXT')
+
+const PRODUCTIVITY_PLAN_STAFF = [
+  {
+    id: 1,
+    name: 'Virendra Singh',
+    role: 'Opening + Counter Control',
+    department: 'Sales',
+    color: '#3b82f6',
+    status: 'active',
+    mobile_number: '9829100001',
+    email: 'virendra@anjanimedical.in',
+    whatsapp_number: null,
+    notification_preference: 'App',
+    timing: '8:00 AM - 6:30 PM',
+    main_responsibility: 'Opening setup, counter sales, shortage noting, rack discipline.',
+  },
+  {
+    id: 2,
+    name: 'Naveen',
+    role: 'Opening + Customer Support',
+    department: 'Customer Support',
+    color: '#8b5cf6',
+    status: 'active',
+    mobile_number: '9829100002',
+    email: 'naveen@anjanimedical.in',
+    whatsapp_number: null,
+    notification_preference: 'WhatsApp',
+    timing: '8:00 AM - 6:30 PM',
+    main_responsibility: 'Pending orders, customer follow-up, refill calls, delivery follow-up.',
+  },
+  {
+    id: 3,
+    name: 'Raj Laxkar',
+    role: 'Daily Accounts / Accountant',
+    department: 'Accounts',
+    color: '#f59e0b',
+    status: 'active',
+    mobile_number: '9829100003',
+    email: 'raj@anjanimedical.in',
+    whatsapp_number: null,
+    notification_preference: 'App',
+    timing: 'Split duty around 2:00 PM and 9:45 PM daily',
+    main_responsibility: '2 PM cash handover, wholesaler management, 9:45 PM closing, cash verification and overtime verification.',
+  },
+  {
+    id: 4,
+    name: 'Rakesh Kumar Meena',
+    role: 'Sales Manager',
+    department: 'Sales',
+    color: '#ef4444',
+    status: 'active',
+    mobile_number: '9829100004',
+    email: 'rakesh@anjanimedical.in',
+    whatsapp_number: null,
+    notification_preference: 'SMS',
+    timing: '10:00 AM - 8:30 PM',
+    main_responsibility: 'Sales floor control, average bill value, staff discipline, daily sales report.',
+  },
+  {
+    id: 5,
+    name: 'Aditya Parashar',
+    role: 'Evening Counter + Closing Support',
+    department: 'Sales',
+    color: '#10b981',
+    status: 'active',
+    mobile_number: '9829100005',
+    email: 'aditya@anjanimedical.in',
+    whatsapp_number: null,
+    notification_preference: 'Email',
+    timing: '12:00 PM - 10:30 PM',
+    main_responsibility: 'Evening counter sales, pending order follow-up, closing support.',
+  },
+  {
+    id: 6,
+    name: 'Vakil Gurjar',
+    role: 'Purchase Manager',
+    department: 'Purchase',
+    color: '#06b6d4',
+    status: 'active',
+    mobile_number: '9829100006',
+    email: 'vakil@anjanimedical.in',
+    whatsapp_number: null,
+    notification_preference: 'App',
+    timing: '12:00 PM - 10:30 PM',
+    main_responsibility: 'Purchase order, shortage prevention, supplier rate comparison, expiry replacement claims.',
+  },
+]
 
 // ── Seed ───────────────────────────────────────────────────────────────────
 
@@ -124,25 +213,75 @@ const staffCount = db.prepare('SELECT COUNT(*) AS n FROM staff').get().n
 
 if (staffCount === 0) {
   const insert = db.prepare(
-    'INSERT INTO staff (name, role, department, color, status, mobile_number, email, notification_preference) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    `INSERT INTO staff (
+      id, name, role, department, color, status, mobile_number, email,
+      whatsapp_number, notification_preference, timing, main_responsibility
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
 
-  const seedStaff = [
-    ['Virendra Singh Rathore', 'Pharmacist',    'Sales',            '#3b82f6', 'active', '9829100001', 'virendra@anjanimedical.in', 'App'],
-    ['Sita Ram Prajapat',      'Dispenser',     'Stock Audit',      '#8b5cf6', 'active', '9829100002', 'sita@anjanimedical.in',     'WhatsApp'],
-    ['Manoj Kumar Saini',      'Cashier',       'Billing',          '#f59e0b', 'active', '9829100003', 'manoj@anjanimedical.in',    'App'],
-    ['Rakesh Kumar Meena',     'Delivery',      'Delivery',         '#ef4444', 'active', '9829100004', 'rakesh@anjanimedical.in',   'SMS'],
-    ['Aditya Parashar',        'Store Manager', 'Admin',            '#10b981', 'active', '9829100005', 'aditya@anjanimedical.in',   'Email'],
-    ['Vakil Gurjar',           'Support Staff', 'Customer Support', '#06b6d4', 'active', '9829100006', 'vakil@anjanimedical.in',    'App'],
-  ]
-
   const seedAll = db.transaction((rows) => {
-    for (const r of rows) insert.run(...r)
+    for (const s of rows) {
+      insert.run(
+        s.id,
+        s.name,
+        s.role,
+        s.department,
+        s.color,
+        s.status,
+        s.mobile_number,
+        s.email,
+        s.whatsapp_number,
+        s.notification_preference,
+        s.timing,
+        s.main_responsibility
+      )
+    }
   })
 
-  seedAll(seedStaff)
+  seedAll(PRODUCTIVITY_PLAN_STAFF)
   console.log('[DB] Seeded 6 staff members.')
 }
+
+// Keep local demo staff aligned with the productivity plan while preserving task assignments by staff id.
+const syncStaff = db.transaction((rows) => {
+  const update = db.prepare(`
+    UPDATE staff SET
+      name=@name,
+      role=@role,
+      department=@department,
+      color=@color,
+      status=@status,
+      mobile_number=@mobile_number,
+      email=@email,
+      whatsapp_number=@whatsapp_number,
+      notification_preference=@notification_preference,
+      timing=@timing,
+      main_responsibility=@main_responsibility
+    WHERE id=@id
+  `)
+  const insert = db.prepare(`
+    INSERT INTO staff (
+      id, name, role, department, color, status, mobile_number, email,
+      whatsapp_number, notification_preference, timing, main_responsibility
+    ) VALUES (
+      @id, @name, @role, @department, @color, @status, @mobile_number, @email,
+      @whatsapp_number, @notification_preference, @timing, @main_responsibility
+    )
+  `)
+
+  for (const s of rows) {
+    const info = update.run(s)
+    if (info.changes === 0) insert.run(s)
+  }
+
+  db.prepare(`
+    UPDATE staff
+    SET status='inactive'
+    WHERE id NOT IN (${rows.map(() => '?').join(',')})
+  `).run(...rows.map((s) => s.id))
+})
+
+syncStaff(PRODUCTIVITY_PLAN_STAFF)
 
 // ── Seed default checklists ────────────────────────────────────────────────
 

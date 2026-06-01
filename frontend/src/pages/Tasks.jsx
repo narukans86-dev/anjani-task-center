@@ -273,7 +273,7 @@ function RecurrenceSection({ form, setForm }) {
 
 // ── Task Modal ───────────────────────────────────────────────────────────────
 
-function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList }) {
+function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList, activeStaffList }) {
   const handle = (k) => (e) => setForm((p) => ({ ...p, [k]: e.target.value }))
 
   useEffect(() => {
@@ -356,7 +356,7 @@ function TaskModal({ title, onClose, onSave, form, setForm, saving, staffList })
               <label className="text-slate-600 text-xs font-medium block mb-1.5">Assigned To</label>
               <select value={form.assigned_to} onChange={handle('assigned_to')} className={inputCls}>
                 <option value="">-- Unassigned --</option>
-                {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {activeStaffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
           </div>
@@ -522,6 +522,10 @@ export default function Tasks() {
     return m
   }, [staffList])
 
+  const activeStaffList = useMemo(() => {
+    return staffList.filter((s) => s.status !== 'inactive')
+  }, [staffList])
+
   const myStaffId = useMemo(() => {
     if (user?.role !== 'staff') return null
     const match = staffList.find((s) => s.name === user.name)
@@ -678,7 +682,7 @@ export default function Tasks() {
           </select>
           <select value={filters.assigned_to} onChange={setFilter('assigned_to')} className={filterSelectCls}>
             <option value="">All Staff</option>
-            {staffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {activeStaffList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <input type="date" value={filters.date} onChange={setFilter('date')} className={filterSelectCls} />
           <div className="relative flex-1 min-w-[160px]">
@@ -955,6 +959,7 @@ export default function Tasks() {
           setForm={setForm}
           saving={saving}
           staffList={staffList}
+          activeStaffList={activeStaffList}
         />
       )}
       {editTarget && (
@@ -966,6 +971,7 @@ export default function Tasks() {
           setForm={setForm}
           saving={saving}
           staffList={staffList}
+          activeStaffList={activeStaffList}
         />
       )}
       {deleteTarget && (

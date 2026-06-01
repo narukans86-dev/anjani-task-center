@@ -8,13 +8,14 @@ import { getPreferenceColor, getPreferenceLabel, getPreferenceIcon } from '../se
 
 const DEPARTMENTS = [
   'Sales', 'Purchase', 'Stock Audit', 'RGHS', 'Customer Support',
-  'Delivery', 'Billing', 'Expiry Return', 'Admin', 'Cleaning',
+  'Delivery', 'Billing', 'Expiry Return', 'Admin', 'Cleaning', 'Accounts',
 ]
 const PRESET_COLORS = ['#3b82f6', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#ec4899']
 const NOTIFICATION_PREFS = ['App', 'WhatsApp', 'Email', 'SMS', 'None']
 const DEFAULT_FORM = {
   name: '', role: '', department: '', color: '#3b82f6', status: 'active',
   mobile_number: '', email: '', whatsapp_number: '', notification_preference: 'App',
+  timing: '', main_responsibility: '',
 }
 
 function initials(name) {
@@ -78,11 +79,11 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           <div>
             <label className="text-slate-600 text-xs font-medium block mb-1.5">Full Name *</label>
-            <input value={form.name} onChange={handle('name')} placeholder="e.g. Rajesh Kumar" className={inputCls} />
+            <input value={form.name} onChange={handle('name')} placeholder="e.g. Virendra Singh" className={inputCls} />
           </div>
           <div>
             <label className="text-slate-600 text-xs font-medium block mb-1.5">Role *</label>
-            <input value={form.role} onChange={handle('role')} placeholder="e.g. Pharmacist" className={inputCls} />
+            <input value={form.role} onChange={handle('role')} placeholder="e.g. Sales Manager" className={inputCls} />
           </div>
           <div>
             <label className="text-slate-600 text-xs font-medium block mb-1.5">Department</label>
@@ -92,6 +93,25 @@ function StaffModal({ title, onClose, onSave, form, setForm, saving }) {
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Timing</label>
+            <input
+              value={form.timing}
+              onChange={handle('timing')}
+              placeholder="8:00 AM - 6:30 PM"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="text-slate-600 text-xs font-medium block mb-1.5">Main Responsibility</label>
+            <textarea
+              value={form.main_responsibility}
+              onChange={handle('main_responsibility')}
+              placeholder="Primary daily responsibility"
+              rows={3}
+              className={`${inputCls} resize-none`}
+            />
           </div>
           <div>
             <label className="text-slate-600 text-xs font-medium block mb-1.5">Mobile Number *</label>
@@ -282,6 +302,8 @@ export default function Staff() {
       email: s.email || '',
       whatsapp_number: s.whatsapp_number || '',
       notification_preference: s.notification_preference || 'App',
+      timing: s.timing || '',
+      main_responsibility: s.main_responsibility || '',
     })
   }
 
@@ -392,6 +414,9 @@ export default function Staff() {
                       <p className="text-slate-500 text-xs truncate">
                         {[s.role, s.department].filter(Boolean).join(' - ')}
                       </p>
+                      {s.timing && (
+                        <p className="text-slate-500 text-xs mt-0.5">{s.timing}</p>
+                      )}
                       {s.mobile_number && (
                         <p className="text-slate-500 text-xs mt-0.5">📱 {s.mobile_number}</p>
                       )}
@@ -413,6 +438,12 @@ export default function Staff() {
                   </div>
 
                   <CompletionBar pct={pct} />
+
+                  {s.main_responsibility && (
+                    <p className="text-slate-600 text-xs leading-relaxed rounded-xl bg-blue-50/60 border border-blue-100 px-3 py-2">
+                      {s.main_responsibility}
+                    </p>
+                  )}
 
                   {(hasPermission('manage_staff') || hasPermission('delete_staff')) && (
                     <div className="flex gap-2">

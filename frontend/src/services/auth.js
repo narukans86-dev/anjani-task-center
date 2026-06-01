@@ -3,7 +3,7 @@ import { ROLES } from './permissions'
 const USERS = [
   { id: 1, username: 'admin',   password: 'admin123',   name: 'Administrator',  role: 'admin' },
   { id: 2, username: 'manager', password: 'manager123', name: 'Store Manager',  role: 'manager' },
-  { id: 3, username: 'staff',   password: 'staff123',   name: 'Staff Member',   role: 'staff' },
+  { id: 3, username: 'staff',   password: 'staff123',   name: 'Naveen',         role: 'staff' },
   { id: 4, username: 'viewer',  password: 'viewer123',  name: 'Viewer',         role: 'viewer' },
 ]
 
