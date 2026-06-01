@@ -2,6 +2,7 @@
 
 const express = require('express')
 const db = require('../database')
+const { generateWorkflowTasks } = require('../utils/refillWorkflow')
 
 const router = express.Router()
 
@@ -132,7 +133,18 @@ router.post('/', (req, res) => {
 
   audit('CREATE', id, { patientName, medicines: medicines?.length ?? 0 })
 
-  res.status(201).json(attachMedicines(db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(id)))
+  // Auto-generate workflow tasks if a refill date is set
+  let workflowResult = null
+  try {
+    if (nextRefillDate || refillDate) {
+      workflowResult = generateWorkflowTasks(id)
+    }
+  } catch (err) {
+    console.error('[refillWorkflow] generation failed:', err.message)
+  }
+
+  const created = attachMedicines(db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(id))
+  res.status(201).json({ ...created, _workflowTasks: workflowResult })
 })
 
 // ── PUT /api/refill-schedules/:id ─────────────────────────────────────────
@@ -229,6 +241,29 @@ router.patch('/:id/resume', (req, res) => {
   audit('RESUME', req.params.id, { patientName: row.patient_name })
 
   res.json(attachMedicines(db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)))
+})
+
+// ── POST /api/refill-schedules/:id/generate-workflow ─────────────────────
+// Manually (re-)trigger workflow task generation for a cycle.
+// Pass { cycleDate: 'YYYY-MM-DD' } to override next_refill_date for the run.
+
+router.post('/:id/generate-workflow', (req, res) => {
+  const row = db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)
+  if (!row) return res.status(404).json({ error: 'Refill schedule not found.' })
+
+  // Temporarily override next_refill_date in-memory if caller supplies a cycleDate
+  const { cycleDate } = req.body ?? {}
+  if (cycleDate) {
+    db.prepare(`UPDATE refill_schedules SET next_refill_date=?, updated_at=datetime('now') WHERE id=?`)
+      .run(cycleDate, req.params.id)
+  }
+
+  try {
+    const result = generateWorkflowTasks(req.params.id)
+    res.json({ message: 'Workflow tasks generated.', ...result })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // ── DELETE /api/refill-schedules/:id — soft cancel ────────────────────────

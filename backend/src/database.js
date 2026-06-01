@@ -143,6 +143,11 @@ addTaskCol('recurrence_days',    'TEXT')
 addTaskCol('recurrence_end_date','TEXT')
 addTaskCol('parent_task_id',     'INTEGER')
 addTaskCol('template_id',        'TEXT')
+// refill workflow linkage
+addTaskCol('patient_schedule_id','INTEGER')
+addTaskCol('generated_from',     'TEXT')
+addTaskCol('refill_cycle_key',   'TEXT')
+addTaskCol('workflow_step',      'TEXT')
 
 const staffCols = db.prepare("PRAGMA table_info(staff)").all().map((c) => c.name)
 const addIfMissing = (col, def) => {
