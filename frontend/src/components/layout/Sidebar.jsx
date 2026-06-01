@@ -52,6 +52,17 @@ const NAV = [
     ),
   },
   {
+    to: '/incentives',
+    routeKey: 'incentives',
+    label: 'Incentives',
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.5h5a2.5 2.5 0 000-5h-4a2.5 2.5 0 010-5h5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 19h16M5 15l3-3 3 2 5-6 3 3" />
+      </svg>
+    ),
+  },
+  {
     to: '/staff',
     routeKey: 'staff',
     label: 'Staff',

@@ -10,6 +10,7 @@ const PAGE_TITLES = {
   '/tasks':     "Today's Tasks",
   '/checklist': 'Checklist',
   '/daily-routine': 'Daily Routine',
+  '/incentives': 'Incentives',
   '/staff':     'Staff',
   '/calendar':  'Calendar',
   '/reports':   'Reports',

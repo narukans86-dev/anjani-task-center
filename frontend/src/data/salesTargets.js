@@ -10,6 +10,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
   {
     staffId: 1,
     staffName: 'Virendra Singh',
+    role: 'Opening + Counter Control',
     dailySalesTarget: 0,
     monthlySalesTarget: 0,
     todaySalesAchieved: 0,
@@ -21,6 +22,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
   {
     staffId: 2,
     staffName: 'Naveen',
+    role: 'Opening + Customer Support',
     dailySalesTarget: 0,
     monthlySalesTarget: 0,
     todaySalesAchieved: 0,
@@ -32,6 +34,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
   {
     staffId: 4,
     staffName: 'Rakesh Kumar Meena',
+    role: 'Sales Manager',
     dailySalesTarget: 0,
     monthlySalesTarget: 0,
     todaySalesAchieved: 0,
@@ -43,6 +46,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
   {
     staffId: 5,
     staffName: 'Aditya Parashar',
+    role: 'Evening Counter + Closing Support',
     dailySalesTarget: 0,
     monthlySalesTarget: 0,
     todaySalesAchieved: 0,
@@ -54,6 +58,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
   {
     staffId: 6,
     staffName: 'Vakil Gurjar',
+    role: 'Purchase Manager',
     dailySalesTarget: 0,
     monthlySalesTarget: 0,
     todaySalesAchieved: 0,
@@ -65,6 +70,7 @@ export const DEFAULT_STAFF_SALES_TARGETS = [
   {
     staffId: 3,
     staffName: 'Raj Laxkar',
+    role: 'Daily Accounts / Accountant',
     dailySalesTarget: 0,
     monthlySalesTarget: 0,
     todaySalesAchieved: 0,
@@ -103,6 +109,7 @@ function normalizeTarget(target, fallback = {}) {
   return {
     staffId: safeNumber(target.staffId ?? fallback.staffId),
     staffName: String(target.staffName || fallback.staffName || '').trim(),
+    role: String(target.role || fallback.role || '').trim(),
     dailySalesTarget: Math.max(0, safeNumber(target.dailySalesTarget ?? fallback.dailySalesTarget)),
     monthlySalesTarget: Math.max(0, safeNumber(target.monthlySalesTarget ?? fallback.monthlySalesTarget)),
     todaySalesAchieved: Math.max(0, safeNumber(target.todaySalesAchieved ?? fallback.todaySalesAchieved)),
@@ -143,6 +150,12 @@ export function saveStaffSalesTargets(targets) {
   const normalized = mergeWithDefaults(targets)
   localStorage.setItem(SALES_TARGETS_KEY, JSON.stringify(normalized))
   return normalized
+}
+
+export function resetStaffSalesTargets() {
+  const defaults = cloneDefaults()
+  localStorage.setItem(SALES_TARGETS_KEY, JSON.stringify(defaults))
+  return defaults
 }
 
 export function calculateSalesProgress(achieved, target) {

@@ -28,6 +28,7 @@ export const ROUTE_ROLES = {
   calendar:  ['admin', 'manager', 'staff', 'viewer'],
   checklist: ['admin', 'manager', 'staff'],
   dailyRoutine: ['admin', 'manager', 'staff', 'viewer'],
+  incentives: ['admin', 'manager'],
 }
 
 export function hasPermission(user, permission) {
