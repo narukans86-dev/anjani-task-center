@@ -10,20 +10,22 @@ const today = () => new Date().toISOString().slice(0, 10)
 // GET /api/reports/staff-performance
 router.get('/staff-performance', (_req, res) => {
   const date = today()
+  // LEFT JOIN from staff so every active staff member appears even with 0 tasks.
   const rows = db.prepare(`
     SELECT
-      assigned_to,
-      COUNT(*) AS assigned,
-      SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) AS completed,
-      SUM(CASE WHEN due_date < ? AND status NOT IN ('completed','cancelled') THEN 1 ELSE 0 END) AS delayed,
-      ROUND(
-        100.0 * SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) / COUNT(*),
-        1
-      ) AS completion_pct
-    FROM tasks
-    WHERE assigned_to IS NOT NULL
-    GROUP BY assigned_to
-    ORDER BY completion_pct DESC
+      s.id AS assigned_to,
+      COUNT(t.id) AS assigned,
+      SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) AS completed,
+      SUM(CASE WHEN t.due_date < ? AND t.status NOT IN ('completed','cancelled') THEN 1 ELSE 0 END) AS delayed,
+      CASE WHEN COUNT(t.id) > 0
+        THEN ROUND(100.0 * SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) / COUNT(t.id), 1)
+        ELSE 0
+      END AS completion_pct
+    FROM staff s
+    LEFT JOIN tasks t ON s.id = t.assigned_to
+    WHERE s.status = 'active'
+    GROUP BY s.id
+    ORDER BY completion_pct DESC, s.name ASC
   `).all(date)
   res.json(rows)
 })
