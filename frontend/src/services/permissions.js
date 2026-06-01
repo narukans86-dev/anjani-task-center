@@ -30,6 +30,7 @@ export const ROUTE_ROLES = {
   dailyRoutine: ['admin', 'manager', 'staff', 'viewer'],
   incentives: ['admin', 'manager'],
   patientRefill: ['admin', 'manager', 'staff'],
+  refillDashboard: ['admin', 'manager'],
 }
 
 export function hasPermission(user, permission) {

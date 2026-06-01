@@ -114,6 +114,17 @@ const NAV = [
     ),
   },
   {
+    to: '/refill-dashboard',
+    routeKey: 'refillDashboard',
+    label: 'Refill Dashboard',
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6m4 6v-4m4 4V9M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 3H6a1 1 0 00-1 1v3" />
+      </svg>
+    ),
+  },
+  {
     to: '/settings',
     routeKey: 'settings',
     label: 'Settings',

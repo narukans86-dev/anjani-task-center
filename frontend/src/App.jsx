@@ -15,6 +15,7 @@ import DailyRoutine from './pages/DailyRoutine'
 import Incentives from './pages/Incentives'
 import AuditLog from './pages/AuditLog'
 import PatientRefillCenter from './pages/PatientRefillCenter'
+import RefillDashboard from './pages/RefillDashboard'
 import { ROUTE_ROLES } from './services/permissions'
 
 function protectedPage(routeKey, element) {
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="reports"   element={protectedPage('reports', <Reports />)} />
             <Route path="settings"  element={protectedPage('settings', <Settings />)} />
             <Route path="patient-refill" element={protectedPage('patientRefill', <PatientRefillCenter />)} />
+            <Route path="refill-dashboard" element={protectedPage('refillDashboard', <RefillDashboard />)} />
             <Route path="*"         element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
