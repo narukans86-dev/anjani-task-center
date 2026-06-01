@@ -40,6 +40,18 @@ const NAV = [
     ),
   },
   {
+    to: '/daily-routine',
+    routeKey: 'dailyRoutine',
+    label: 'Daily Routine',
+    icon: (
+      <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.75">
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 8h6M9 12h6M9 16h3" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="m15 16 1.5 1.5L20 14" />
+      </svg>
+    ),
+  },
+  {
     to: '/staff',
     routeKey: 'staff',
     label: 'Staff',

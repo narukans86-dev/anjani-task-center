@@ -11,6 +11,7 @@ import Calendar from './pages/Calendar'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Checklist from './pages/Checklist'
+import DailyRoutine from './pages/DailyRoutine'
 import AuditLog from './pages/AuditLog'
 import { ROUTE_ROLES } from './services/permissions'
 
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="dashboard" element={protectedPage('dashboard', <Dashboard />)} />
             <Route path="tasks"     element={protectedPage('tasks', <Tasks />)} />
             <Route path="checklist" element={protectedPage('checklist', <Checklist />)} />
+            <Route path="daily-routine" element={protectedPage('dailyRoutine', <DailyRoutine />)} />
             <Route path="audit"     element={protectedPage('audit', <AuditLog />)} />
             <Route path="staff"     element={protectedPage('staff', <Staff />)} />
             <Route path="calendar"  element={protectedPage('calendar', <Calendar />)} />

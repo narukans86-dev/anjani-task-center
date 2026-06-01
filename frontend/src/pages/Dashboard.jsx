@@ -6,6 +6,7 @@ import BrandLogo from '../components/BrandLogo'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../context/AuthContext'
 import { generateTaskNotifications } from '../utils/notificationGenerator'
+import { getDailyRoutineSummary } from '../data/dailyRoutine'
 
 const BRAND_BLUE = '#0A3D91'
 
@@ -223,6 +224,37 @@ function StatCard({ label, value, color, icon, loading }) {
             : <p className={`text-2xl font-bold tabular-nums ${palette.val}`}>{value}</p>
           }
           <p className="text-slate-500 text-xs font-medium leading-tight">{label}</p>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+function DailyRoutineCard({ summary }) {
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 text-[#0A3D91] flex items-center justify-center shrink-0">
+          <Icon name="clipboard" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[#111827] font-semibold text-sm">Daily Routine</p>
+              <p className="text-slate-500 text-xs mt-0.5">{summary.needsAttention} staff need attention</p>
+            </div>
+            <p className="text-[#0A3D91] text-2xl font-bold tabular-nums">{summary.percent}%</p>
+          </div>
+          <div className="mt-3 h-2 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full rounded-full bg-[#0A3D91]" style={{ width: `${summary.percent}%` }} />
+          </div>
+          <Link
+            to="/daily-routine"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#0A3D91] hover:underline"
+          >
+            Open Daily Routine
+            <Icon name="arrow-right" className="w-3 h-3" />
+          </Link>
         </div>
       </div>
     </Card>
@@ -611,6 +643,7 @@ export default function Dashboard() {
   const today = dateKey()
   const todayDisplay = toDateLabel(today, { weekday: 'long', year: 'numeric' })
   const dailyQuote = getDailyQuote()
+  const routineSummary = getDailyRoutineSummary()
   const canCompleteTasks = user?.role !== 'viewer'
 
   const myStaffId = useMemo(() => {
@@ -719,6 +752,8 @@ export default function Dashboard() {
       </div>
 
       <MorningBoostCard dailyQuote={dailyQuote} />
+
+      <DailyRoutineCard summary={routineSummary} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <StatCard label="Total Tasks Today" value={todayTotal} color="blue" icon="clipboard" loading={loading} />
