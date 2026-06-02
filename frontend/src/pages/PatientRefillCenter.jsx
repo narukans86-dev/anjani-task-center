@@ -290,12 +290,22 @@ function ScheduleForm({ initial, staff, onSave, onClose, saving }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (saving) return // prevent double-submit
     if (!form.patientName.trim()) {
       setValidationError('Patient name is required.')
       return
     }
+    if (!form.patientMobile.trim() && !form.patientWhatsapp.trim()) {
+      setValidationError('Mobile or WhatsApp number is required.')
+      return
+    }
     if (!form.refillDate) {
       setValidationError('Refill / Start Date is required.')
+      return
+    }
+    const hasMedicine = form.medicines.some((m) => (m.medicineName || '').trim())
+    if (!hasMedicine) {
+      setValidationError('At least one medicine name is required.')
       return
     }
     setValidationError('')
@@ -440,13 +450,13 @@ function ScheduleForm({ initial, staff, onSave, onClose, saving }) {
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-[#0A3D91] text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-60 transition-colors flex items-center justify-center gap-2">
+              className="flex-1 px-4 py-2.5 rounded-xl bg-[#0A3D91] text-white text-sm font-semibold hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
               {saving && (
                 <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                 </svg>
               )}
-              {initial ? 'Save Changes' : 'Add Schedule & Generate Tasks'}
+              {saving ? 'Saving…' : initial ? 'Save Changes' : 'Add Schedule & Generate Tasks'}
             </button>
           </div>
         </form>
@@ -553,13 +563,21 @@ function ScheduleCard({ s, staffMap, onEdit, onPause, onResume, onCancel, onAdva
 
       {/* Card body */}
       <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
+        {s.token_id && (
+          <div className="col-span-2">
+            <p className="text-slate-400 font-medium mb-0.5">Refill Token</p>
+            <p className="text-[#0A3D91] font-mono font-semibold tracking-wide">{s.token_id}</p>
+          </div>
+        )}
         <div>
           <p className="text-slate-400 font-medium mb-0.5">Next Refill</p>
           <p className="text-slate-700 font-semibold">{fmt(s.next_refill_date)}</p>
         </div>
         <div>
           <p className="text-slate-400 font-medium mb-0.5">Medicines</p>
-          <p className="text-slate-700 font-semibold">{medCount} item{medCount !== 1 ? 's' : ''}</p>
+          <p className={`font-semibold ${medCount === 0 ? 'text-red-500' : 'text-slate-700'}`}>
+            {medCount} item{medCount !== 1 ? 's' : ''}
+          </p>
         </div>
         <div>
           <p className="text-slate-400 font-medium mb-0.5">Sales Staff</p>
@@ -663,6 +681,7 @@ export default function PatientRefillCenter() {
   const [showForm, setShowForm] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [cancelTarget, setCancelTarget] = useState(null)
+  const [clientRequestId, setClientRequestId] = useState('')
 
   // Filters
   const [search, setSearch] = useState('')
@@ -717,6 +736,7 @@ export default function PatientRefillCenter() {
   // ── Handlers ──────────────────────────────────────────────────────────
 
   const handleSave = async (form) => {
+    if (saving) return // guard against duplicate submission
     setSaving(true)
     try {
       const payload = {
@@ -724,18 +744,24 @@ export default function PatientRefillCenter() {
         assignedSalesStaffId: form.assignedSalesStaffId || null,
         assignedPurchaseStaffId: form.assignedPurchaseStaffId || null,
         customIntervalDays: form.customIntervalDays ? +form.customIntervalDays : null,
-        medicines: form.medicines.filter((m) => m.medicineName.trim()),
+        medicines: form.medicines.filter((m) => (m.medicineName || '').trim()),
+        clientRequestId: editTarget ? undefined : clientRequestId,
       }
       if (editTarget) {
         await updateRefillSchedule(editTarget.id, payload)
-        showToast('Schedule updated.', 'success')
+        showToast('Schedule updated successfully.', 'success')
       } else {
         const result = await addRefillSchedule(payload)
-        const taskCount = result?._workflowTasks?.tasksCreated ?? 0
-        showToast(`Schedule added${taskCount ? ` · ${taskCount} tasks generated` : ''}.`, 'success')
+        const token = result?.token_id ?? ''
+        const taskCount = result?._workflowTasks?.created ?? 0
+        const parts = ['Refill schedule created successfully.']
+        if (token) parts.push(`Token: ${token}`)
+        if (taskCount) parts.push(`${taskCount} tasks generated`)
+        showToast(parts.join(' · '), 'success')
       }
       setShowForm(false)
       setEditTarget(null)
+      setClientRequestId('')
       await load()
     } catch (err) {
       showToast('Save failed: ' + err.message, 'error')
@@ -795,8 +821,16 @@ export default function PatientRefillCenter() {
     }
   }
 
-  const openAdd = () => { setEditTarget(null); setShowForm(true) }
-  const closeForm = () => { setShowForm(false); setEditTarget(null) }
+  const openAdd = () => {
+    setEditTarget(null)
+    // Fresh request ID per form open — prevents duplicates if user closes and reopens
+    const rid = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    setClientRequestId(rid)
+    setShowForm(true)
+  }
+  const closeForm = () => { setShowForm(false); setEditTarget(null); setClientRequestId('') }
 
   // Build initial form values for edit
   const editInitial = editTarget ? {

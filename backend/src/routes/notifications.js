@@ -7,16 +7,33 @@ const router = express.Router()
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-// GET /api/notifications — all notifications, unread first
-router.get('/', (_req, res) => {
+// Build WHERE clause for staff-visibility filtering
+// Admin sees all; everyone else sees only global (target_staff_id IS NULL) + their own
+function staffFilter(user) {
+  if (!user || user.role === 'admin') return { clause: '', params: [] }
+  if (!user.staff_id) return { clause: '', params: [] }
+  return {
+    clause: ' AND (target_staff_id IS NULL OR target_staff_id = ?)',
+    params: [user.staff_id],
+  }
+}
+
+// GET /api/notifications
+router.get('/', (req, res) => {
+  const { clause, params } = staffFilter(req.currentUser)
   res.json(
-    db.prepare('SELECT * FROM notifications ORDER BY is_read ASC, created_at DESC').all()
+    db.prepare(
+      `SELECT * FROM notifications WHERE 1=1${clause} ORDER BY is_read ASC, created_at DESC`
+    ).all(...params)
   )
 })
 
 // GET /api/notifications/unread-count
-router.get('/unread-count', (_req, res) => {
-  const count = db.prepare("SELECT COUNT(*) AS n FROM notifications WHERE is_read=0").get().n
+router.get('/unread-count', (req, res) => {
+  const { clause, params } = staffFilter(req.currentUser)
+  const count = db.prepare(
+    `SELECT COUNT(*) AS n FROM notifications WHERE is_read=0${clause}`
+  ).get(...params).n
   res.json({ count })
 })
 
@@ -26,13 +43,14 @@ router.patch('/:id/read', (req, res) => {
   const existing = db.prepare('SELECT * FROM notifications WHERE id=?').get(id)
   if (!existing) return res.status(404).json({ error: 'Notification not found.' })
 
-  db.prepare("UPDATE notifications SET is_read=1 WHERE id=?").run(id)
+  db.prepare('UPDATE notifications SET is_read=1 WHERE id=?').run(id)
   res.json(db.prepare('SELECT * FROM notifications WHERE id=?').get(id))
 })
 
 // PATCH /api/notifications/read-all
-router.patch('/read-all', (_req, res) => {
-  db.prepare("UPDATE notifications SET is_read=1 WHERE is_read=0").run()
+router.patch('/read-all', (req, res) => {
+  const { clause, params } = staffFilter(req.currentUser)
+  db.prepare(`UPDATE notifications SET is_read=1 WHERE is_read=0${clause}`).run(...params)
   res.json({ message: 'All notifications marked as read.' })
 })
 
@@ -42,11 +60,19 @@ router.delete('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM notifications WHERE id=?').get(id)
   if (!existing) return res.status(404).json({ error: 'Notification not found.' })
 
+  // Block deletion of active required-action notifications
+  if (existing.requires_action && !existing.action_completed) {
+    return res.status(400).json({
+      error: 'Complete the refill task before clearing this notification.',
+      requires_action: true,
+    })
+  }
+
   db.prepare('DELETE FROM notifications WHERE id=?').run(id)
   res.json({ message: 'Notification deleted.' })
 })
 
-// POST /api/notifications/generate — scan tasks and produce notifications
+// POST /api/notifications/generate
 router.post('/generate', (_req, res) => {
   const date = today()
   const hour = new Date().getHours()
@@ -102,7 +128,7 @@ router.post('/generate', (_req, res) => {
     }
   }
 
-  // Incomplete checklists after working hours (after 19:00)
+  // Incomplete checklists after working hours
   if (hour >= 19) {
     const incomplete = db.prepare(`
       SELECT c.type, COUNT(*) AS n
@@ -131,11 +157,7 @@ router.post('/generate', (_req, res) => {
   }
 
   // Staff inactive
-  const inactiveStaff = db.prepare(`
-    SELECT id, name FROM staff
-    WHERE status = 'inactive'
-  `).all()
-
+  const inactiveStaff = db.prepare(`SELECT id, name FROM staff WHERE status = 'inactive'`).all()
   for (const staff of inactiveStaff) {
     const dupe = db.prepare(`
       SELECT id FROM notifications
@@ -146,23 +168,22 @@ router.post('/generate', (_req, res) => {
       const info = insert.run(
         `Inactive staff: ${staff.name}`,
         `${staff.name} is currently marked as inactive.`,
-        'staff', 'medium', null, staff.id
+        'staff', 'medium', null
       )
       created.push(info.lastInsertRowid)
     }
   }
 
-  // System backup reminder (daily)
+  // System backup reminder
   const backupDupe = db.prepare(`
     SELECT id FROM notifications
-    WHERE type='system' AND title LIKE 'System backup reminder%'
-      AND date(created_at)=?
+    WHERE type='system' AND title LIKE 'System backup reminder%' AND date(created_at)=?
   `).get(date)
   if (!backupDupe) {
     const info = insert.run(
       'System backup reminder',
       'Remember to export your data for backup and safety.',
-      'system', 'low', null, null
+      'system', 'low', null
     )
     created.push(info.lastInsertRowid)
   }
@@ -170,82 +191,86 @@ router.post('/generate', (_req, res) => {
   res.json({ generated: created.length, ids: created })
 })
 
-// POST /api/notifications/generate-refill — generate refill workflow notifications
+// POST /api/notifications/generate-refill
 router.post('/generate-refill', (_req, res) => {
   const date = today()
 
   const insertNotif = db.prepare(`
     INSERT OR IGNORE INTO notifications
-      (title, message, type, priority, related_schedule_id, dedup_key)
-    VALUES (?, ?, ?, ?, ?, ?)
+      (title, message, type, priority, related_schedule_id, dedup_key,
+       requires_action, target_staff_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   const created = []
   const skipped = []
 
-  // Fetch all active refill schedules
-  const schedules = db.prepare(`
-    SELECT * FROM refill_schedules WHERE scheduler_status = 'active'
-  `).all()
+  const schedules = db.prepare(`SELECT * FROM refill_schedules WHERE scheduler_status = 'active'`).all()
 
   for (const s of schedules) {
     const refillDate = s.next_refill_date
     if (!refillDate) continue
 
     const name = s.patient_name
+    const token = s.token_id || `SCHED-${s.id}`
     const refillTs = new Date(refillDate + 'T00:00:00Z').getTime()
     const todayTs = new Date(date + 'T00:00:00Z').getTime()
     const daysUntil = Math.round((refillTs - todayTs) / 86400000)
 
-    // Helper to emit one notification
-    function emit(step, title, message, priority = 'medium') {
+    const emit = (step, title, message, priority = 'medium', requiresAction = false, targetStaffId = null) => {
       const key = `refill:${s.id}:${step}:${refillDate}`
-      const info = insertNotif.run(title, message, 'refill', priority, s.id, key)
+      const info = insertNotif.run(title, message, 'refill', priority, s.id, key,
+        requiresAction ? 1 : 0, targetStaffId)
       if (info.changes > 0) created.push(info.lastInsertRowid)
       else skipped.push(key)
     }
 
-    // Stock check reminder — 7 days before
+    // Stock check reminder — 7 days before → notify purchase staff
     if (daysUntil <= 7 && daysUntil >= 5) {
-      emit('stock_check', `Stock Check: ${name}`,
-        `Patient ${name} refill due on ${refillDate}. Start stock check today.`, 'high')
+      emit('stock_check', `Stock Check: ${name} (${token})`,
+        `Patient ${name} refill due on ${refillDate}. Start stock check today.`,
+        'high', true, s.assigned_purchase_staff_id)
     }
 
     // Reorder reminder — 5 days before
     if (daysUntil <= 5 && daysUntil >= 3) {
-      emit('reorder', `Reorder Required: ${name}`,
-        `Reorder required for Patient ${name} medicines. Refill on ${refillDate}.`, 'high')
+      emit('reorder', `Reorder Required: ${name} (${token})`,
+        `Reorder required for Patient ${name} medicines. Refill on ${refillDate}.`,
+        'high', true, s.assigned_purchase_staff_id)
     }
 
-    // Sales call reminder — 2 days before
+    // Sales call reminder — 2 days before → notify sales staff
     if (daysUntil <= 2 && daysUntil >= 1) {
-      emit('patient_call', `Sales Call: ${name}`,
-        `Sales team: Call Patient ${name} for refill confirmation. Refill on ${refillDate}.`, 'high')
+      emit('patient_call', `Sales Call: ${name} (${token})`,
+        `Call Patient ${name} for refill confirmation. Refill on ${refillDate}.`,
+        'high', true, s.assigned_sales_staff_id)
     }
 
-    // Dispatch reminder — on refill day
+    // Dispatch reminder — on refill day → notify sales staff (daily priority, non-clearable)
     if (daysUntil === 0) {
       const isShiprocket = s.delivery_mode === 'Shiprocket'
-      emit('dispatch', `Dispatch: ${name}`,
+      emit('dispatch', `Dispatch: ${name} (${token})`,
         isShiprocket
           ? `Shiprocket dispatch required for Patient ${name}. Refill date: ${refillDate}.`
           : `Dispatch medicines to Patient ${name} today (${refillDate}).`,
-        'urgent')
+        'urgent', true, s.assigned_sales_staff_id)
     }
 
-    // Purchase verification reminder — 3 days before
+    // Purchase verification — 3 days before
     if (daysUntil <= 3 && daysUntil >= 2) {
-      emit('verify_purchase', `Verify Purchase: ${name}`,
-        `Purchase team: Verify medicine availability for Patient ${name}. Refill on ${refillDate}.`, 'medium')
+      emit('verify_purchase', `Verify Purchase: ${name} (${token})`,
+        `Purchase team: Verify medicine availability for Patient ${name}. Refill on ${refillDate}.`,
+        'medium', true, s.assigned_purchase_staff_id)
     }
 
-    // Overdue refill — past due date
+    // Overdue refill
     if (daysUntil < 0) {
-      emit('overdue', `Overdue Refill: ${name}`,
-        `Patient ${name} refill was due on ${refillDate} and is now ${Math.abs(daysUntil)} day(s) overdue.`, 'urgent')
+      emit('overdue', `Overdue Refill: ${name} (${token})`,
+        `Patient ${name} refill was due on ${refillDate} and is now ${Math.abs(daysUntil)} day(s) overdue.`,
+        'urgent', true, s.assigned_sales_staff_id)
     }
 
-    // Critical warning — refill within 2 days and stock_check task still pending
+    // Critical warning — within 2 days and stock not verified
     if (daysUntil <= 2 && daysUntil >= 0) {
       const stockTask = db.prepare(`
         SELECT id FROM tasks
@@ -255,7 +280,8 @@ router.post('/generate-refill', (_req, res) => {
       `).get(s.id, refillDate)
       if (stockTask) {
         emit('critical_stock', `⚠ Critical: Stock Not Verified — ${name}`,
-          `Refill for Patient ${name} is in ${daysUntil} day(s) but stock has NOT been verified yet!`, 'urgent')
+          `Refill for Patient ${name} is in ${daysUntil} day(s) but stock has NOT been verified yet! Token: ${token}`,
+          'urgent', true, s.assigned_sales_staff_id)
       }
     }
   }

@@ -51,8 +51,13 @@ export default function NotificationPanel({ open, onClose, notifications, onRefr
     try { await markAllRead(); onRefresh() } catch { /* silent */ }
   }
 
-  async function handleDelete(e, id) {
+  async function handleDelete(e, id, requiresAction, actionCompleted) {
     e.stopPropagation()
+    // Non-clearable: active required-action notifications must be completed first
+    if (requiresAction && !actionCompleted) {
+      alert('Complete the refill task before clearing this notification.')
+      return
+    }
     try { await deleteNotification(id); onRefresh() } catch { /* silent */ }
   }
 
@@ -141,15 +146,27 @@ export default function NotificationPanel({ open, onClose, notifications, onRefr
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={(e) => handleDelete(e, n.id)}
-                  className="shrink-0 p-1 rounded text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors mt-0.5"
-                  title="Delete"
-                >
-                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                {n.requires_action && !n.action_completed ? (
+                  <span
+                    className="shrink-0 p-1 rounded text-amber-400 mt-0.5"
+                    title="Complete the refill task before clearing this notification"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M7 11V7a5 5 0 0110 0v4" />
+                    </svg>
+                  </span>
+                ) : (
+                  <button
+                    onClick={(e) => handleDelete(e, n.id, n.requires_action, n.action_completed)}
+                    className="shrink-0 p-1 rounded text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors mt-0.5"
+                    title="Delete"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
             ))
           )}

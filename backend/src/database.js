@@ -227,6 +227,11 @@ addRefillCol('start_reminder_days_before',  'INTEGER DEFAULT 3')
 addRefillCol('notes',                       'TEXT')
 addRefillCol('last_processed_date',         'TEXT')
 addRefillCol('next_refill_date',            'TEXT')
+addRefillCol('token_id',                    'TEXT')
+addRefillCol('client_request_id',          'TEXT')
+
+db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_refill_token ON refill_schedules(token_id) WHERE token_id IS NOT NULL').run()
+db.prepare('CREATE UNIQUE INDEX IF NOT EXISTS idx_refill_client_req ON refill_schedules(client_request_id) WHERE client_request_id IS NOT NULL').run()
 
 // refill_medicines migrations
 const medicineCols = db.prepare("PRAGMA table_info(refill_medicines)").all().map((c) => c.name)
@@ -273,6 +278,16 @@ if (!notifCols.includes('dedup_key')) {
 // notifications refill schedule link
 if (!notifCols.includes('related_schedule_id')) {
   db.prepare('ALTER TABLE notifications ADD COLUMN related_schedule_id INTEGER').run()
+}
+// notifications workflow action tracking
+if (!notifCols.includes('requires_action')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN requires_action INTEGER DEFAULT 0').run()
+}
+if (!notifCols.includes('action_completed')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN action_completed INTEGER DEFAULT 0').run()
+}
+if (!notifCols.includes('target_staff_id')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN target_staff_id INTEGER').run()
 }
 
 // users table — add new profile columns if missing
