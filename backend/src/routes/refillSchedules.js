@@ -8,12 +8,13 @@ const router = express.Router()
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function audit(action, entityId, details) {
+function audit(req, action, entityId, details) {
   try {
+    const user = req?.currentUser?.username || 'system'
     db.prepare(
-      `INSERT INTO audit_logs (action, entity_type, entity_id, details)
-       VALUES (?, 'refill_schedule', ?, ?)`
-    ).run(action, entityId, typeof details === 'string' ? details : JSON.stringify(details))
+      `INSERT INTO audit_logs (action, entity_type, entity_id, user_name, details)
+       VALUES (?, 'refill_schedule', ?, ?, ?)`
+    ).run(action, entityId, user, typeof details === 'string' ? details : JSON.stringify(details))
   } catch {
     // non-fatal
   }
@@ -48,7 +49,19 @@ function replaceMedicines(scheduleId, medicines) {
 }
 
 function attachMedicines(row) {
+  if (!row) return null
   return { ...row, medicines: getMedicines(row.id) }
+}
+
+function normalizeId(val) {
+  if (val === 'all' || val === '' || val === undefined || val === 'null') return null
+  const n = parseInt(val, 10)
+  return isNaN(n) ? null : n
+}
+
+function normalizeDate(val) {
+  if (!val || val === '' || val === 'null' || val === 'undefined') return null
+  return val
 }
 
 // ── GET /api/refill-schedules ──────────────────────────────────────────────
@@ -56,15 +69,25 @@ function attachMedicines(row) {
 
 router.get('/', (req, res) => {
   const { status, priority, patientType, search, staffId, dueDate } = req.query
+  const user = req.currentUser
 
   let sql = 'SELECT * FROM refill_schedules WHERE 1=1'
   const params = []
+
+  // Staff visibility: Admin/Manager see all, Staff see only assigned
+  const isStaff = user.role === 'staff' && user.access_role !== 'sales_manager'
+  if (isStaff && user.staff_id) {
+    sql += ' AND (assigned_sales_staff_id = ? OR assigned_purchase_staff_id = ?)'
+    params.push(user.staff_id, user.staff_id)
+  } else if (staffId) {
+    sql += ' AND (assigned_sales_staff_id = ? OR assigned_purchase_staff_id = ?)'
+    params.push(staffId, staffId)
+  }
 
   if (status)      { sql += ' AND scheduler_status = ?';            params.push(status) }
   if (priority)    { sql += ' AND priority = ?';                    params.push(priority) }
   if (patientType) { sql += ' AND patient_type = ?';                params.push(patientType) }
   if (search)      { sql += ' AND patient_name LIKE ?';             params.push(`%${search}%`) }
-  if (staffId)     { sql += ' AND (assigned_sales_staff_id = ? OR assigned_purchase_staff_id = ?)'; params.push(staffId, staffId) }
   if (dueDate)     { sql += ' AND next_refill_date = ?';            params.push(dueDate) }
 
   sql += ' ORDER BY next_refill_date ASC, created_at DESC'
@@ -76,25 +99,43 @@ router.get('/', (req, res) => {
 // ── GET /api/refill-schedules/upcoming — due within N days ────────────────
 
 router.get('/upcoming', (req, res) => {
+  const user = req.currentUser
   const days = Math.min(90, Math.max(1, parseInt(req.query.days ?? 7, 10)))
   const today = new Date().toISOString().slice(0, 10)
   const until = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
 
-  const rows = db.prepare(`
+  let sql = `
     SELECT * FROM refill_schedules
     WHERE scheduler_status = 'active'
       AND next_refill_date BETWEEN ? AND ?
-    ORDER BY next_refill_date ASC
-  `).all(today, until).map(attachMedicines)
+  `
+  const params = [today, until]
 
+  const isStaff = user.role === 'staff' && user.access_role !== 'sales_manager'
+  if (isStaff && user.staff_id) {
+    sql += ' AND (assigned_sales_staff_id = ? OR assigned_purchase_staff_id = ?)'
+    params.push(user.staff_id, user.staff_id)
+  }
+
+  sql += ' ORDER BY next_refill_date ASC'
+
+  const rows = db.prepare(sql).all(...params).map(attachMedicines)
   res.json({ total: rows.length, data: rows })
 })
 
 // ── GET /api/refill-schedules/:id ─────────────────────────────────────────
 
 router.get('/:id', (req, res) => {
+  const user = req.currentUser
   const row = db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)
   if (!row) return res.status(404).json({ error: 'Refill schedule not found.' })
+
+  // Basic staff check
+  const isStaff = user.role === 'staff' && user.access_role !== 'sales_manager'
+  if (isStaff && user.staff_id && row.assigned_sales_staff_id !== user.staff_id && row.assigned_purchase_staff_id !== user.staff_id) {
+    return res.status(403).json({ error: 'Access denied to this schedule.' })
+  }
+
   res.json(attachMedicines(row))
 })
 
@@ -112,6 +153,9 @@ router.post('/', (req, res) => {
 
   if (!patientName) return res.status(400).json({ error: 'patientName is required.' })
 
+  const sDate = normalizeDate(refillDate)
+  const nDate = normalizeDate(nextRefillDate) || sDate
+
   const info = db.prepare(`
     INSERT INTO refill_schedules (
       patient_name, patient_mobile, patient_whatsapp, patient_email, patient_address,
@@ -121,22 +165,36 @@ router.post('/', (req, res) => {
       start_reminder_days_before, notes, next_refill_date
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
-    patientName, patientMobile ?? null, patientWhatsapp ?? null, patientEmail ?? null, patientAddress ?? null,
-    patientType ?? 'regular', refillDate ?? null, refillFrequency ?? 'monthly', customIntervalDays ?? null,
-    assignedSalesStaffId ?? null, assignedPurchaseStaffId ?? null, assignedPurchaseManagerId ?? null,
-    deliveryMode ?? 'pickup', schedulerStatus ?? 'active', workflowStatus ?? 'pending', priority ?? 'medium',
-    startReminderDaysBefore ?? 3, notes ?? null, nextRefillDate ?? refillDate ?? null,
+    patientName,
+    patientMobile   || null,
+    patientWhatsapp || null,
+    patientEmail    || null,
+    patientAddress  || null,
+    patientType     || 'regular',
+    sDate,
+    refillFrequency || 'monthly',
+    customIntervalDays ? parseInt(customIntervalDays, 10) : null,
+    normalizeId(assignedSalesStaffId),
+    normalizeId(assignedPurchaseStaffId),
+    normalizeId(assignedPurchaseManagerId),
+    deliveryMode    || 'pickup',
+    schedulerStatus || 'active',
+    workflowStatus  || 'upcoming',
+    priority        || 'medium',
+    parseInt(startReminderDaysBefore ?? 3, 10),
+    notes           || null,
+    nDate,
   )
 
   const id = info.lastInsertRowid
   if (Array.isArray(medicines)) replaceMedicines(id, medicines)
 
-  audit('CREATE', id, { patientName, medicines: medicines?.length ?? 0 })
+  audit(req, 'CREATE', id, { patientName, medicines: medicines?.length ?? 0 })
 
   // Auto-generate workflow tasks if a refill date is set
   let workflowResult = null
   try {
-    if (nextRefillDate || refillDate) {
+    if (nDate) {
       workflowResult = generateWorkflowTasks(id)
     }
   } catch (err) {
@@ -161,6 +219,9 @@ router.put('/:id', (req, res) => {
     startReminderDaysBefore, notes, lastProcessedDate, nextRefillDate,
     medicines,
   } = req.body
+
+  const sDate = normalizeDate(refillDate) ?? row.refill_date
+  const nDate = normalizeDate(nextRefillDate) ?? row.next_refill_date
 
   db.prepare(`
     UPDATE refill_schedules SET
@@ -193,26 +254,26 @@ router.put('/:id', (req, res) => {
     patientEmail             ?? row.patient_email,
     patientAddress           ?? row.patient_address,
     patientType              ?? row.patient_type,
-    refillDate               ?? row.refill_date,
+    sDate,
     refillFrequency          ?? row.refill_frequency,
-    customIntervalDays       ?? row.custom_interval_days,
-    assignedSalesStaffId     ?? row.assigned_sales_staff_id,
-    assignedPurchaseStaffId  ?? row.assigned_purchase_staff_id,
-    assignedPurchaseManagerId?? row.assigned_purchase_manager_id,
+    customIntervalDays       ? parseInt(customIntervalDays, 10) : row.custom_interval_days,
+    normalizeId(assignedSalesStaffId) ?? row.assigned_sales_staff_id,
+    normalizeId(assignedPurchaseStaffId) ?? row.assigned_purchase_staff_id,
+    normalizeId(assignedPurchaseManagerId) ?? row.assigned_purchase_manager_id,
     deliveryMode             ?? row.delivery_mode,
     schedulerStatus          ?? row.scheduler_status,
     workflowStatus           ?? row.workflow_status,
     priority                 ?? row.priority,
-    startReminderDaysBefore  ?? row.start_reminder_days_before,
+    parseInt(startReminderDaysBefore ?? row.start_reminder_days_before, 10),
     notes                    ?? row.notes,
     lastProcessedDate        ?? row.last_processed_date,
-    nextRefillDate           ?? row.next_refill_date,
+    nDate,
     req.params.id,
   )
 
   if (Array.isArray(medicines)) replaceMedicines(req.params.id, medicines)
 
-  audit('EDIT', req.params.id, { patientName: patientName ?? row.patient_name })
+  audit(req, 'EDIT', req.params.id, { patientName: patientName ?? row.patient_name })
 
   res.json(attachMedicines(db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)))
 })
@@ -225,7 +286,7 @@ router.patch('/:id/pause', (req, res) => {
   if (row.scheduler_status === 'paused') return res.status(400).json({ error: 'Already paused.' })
 
   db.prepare(`UPDATE refill_schedules SET scheduler_status='paused', updated_at=datetime('now') WHERE id=?`).run(req.params.id)
-  audit('PAUSE', req.params.id, { previousStatus: row.scheduler_status })
+  audit(req, 'PAUSE', req.params.id, { previousStatus: row.scheduler_status })
 
   res.json(attachMedicines(db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)))
 })
@@ -238,7 +299,7 @@ router.patch('/:id/resume', (req, res) => {
   if (row.scheduler_status !== 'paused') return res.status(400).json({ error: 'Not paused.' })
 
   db.prepare(`UPDATE refill_schedules SET scheduler_status='active', updated_at=datetime('now') WHERE id=?`).run(req.params.id)
-  audit('RESUME', req.params.id, { patientName: row.patient_name })
+  audit(req, 'RESUME', req.params.id, { patientName: row.patient_name })
 
   res.json(attachMedicines(db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)))
 })
@@ -277,7 +338,7 @@ router.patch('/:id/workflow-status', (req, res) => {
   db.prepare(`UPDATE refill_schedules SET workflow_status=?, updated_at=datetime('now') WHERE id=?`)
     .run(status, req.params.id)
 
-  audit('WORKFLOW_STATUS_CHANGE', req.params.id, { from: current, to: status, notes: notes ?? null })
+  audit(req, 'WORKFLOW_STATUS_CHANGE', req.params.id, { from: current, to: status, notes: notes ?? null })
 
   // Advance linked workflow task status when relevant
   try {
@@ -347,12 +408,12 @@ router.delete('/:id', (req, res) => {
 
   if (hard) {
     db.prepare('DELETE FROM refill_schedules WHERE id = ?').run(req.params.id)
-    audit('DELETE_HARD', req.params.id, { patientName: row.patient_name })
+    audit(req, 'DELETE_HARD', req.params.id, { patientName: row.patient_name })
     return res.json({ message: 'Deleted permanently.' })
   }
 
   db.prepare(`UPDATE refill_schedules SET scheduler_status='cancelled', updated_at=datetime('now') WHERE id=?`).run(req.params.id)
-  audit('CANCEL', req.params.id, { patientName: row.patient_name })
+  audit(req, 'CANCEL', req.params.id, { patientName: row.patient_name })
 
   res.json(attachMedicines(db.prepare('SELECT * FROM refill_schedules WHERE id = ?').get(req.params.id)))
 })

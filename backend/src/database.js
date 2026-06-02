@@ -210,6 +210,30 @@ addTaskCol('generated_from',     'TEXT')
 addTaskCol('refill_cycle_key',   'TEXT')
 addTaskCol('workflow_step',      'TEXT')
 
+// refill_schedules migrations
+const refillCols = db.prepare("PRAGMA table_info(refill_schedules)").all().map((c) => c.name)
+const addRefillCol = (col, def) => {
+  if (!refillCols.includes(col)) {
+    db.prepare(`ALTER TABLE refill_schedules ADD COLUMN ${col} ${def}`).run()
+  }
+}
+addRefillCol('patient_email',               'TEXT')
+addRefillCol('patient_address',             'TEXT')
+addRefillCol('assigned_purchase_manager_id','INTEGER')
+addRefillCol('delivery_mode',               "TEXT DEFAULT 'pickup'")
+addRefillCol('workflow_status',             "TEXT DEFAULT 'pending'")
+addRefillCol('priority',                    "TEXT DEFAULT 'medium'")
+addRefillCol('start_reminder_days_before',  'INTEGER DEFAULT 3')
+addRefillCol('notes',                       'TEXT')
+addRefillCol('last_processed_date',         'TEXT')
+addRefillCol('next_refill_date',            'TEXT')
+
+// refill_medicines migrations
+const medicineCols = db.prepare("PRAGMA table_info(refill_medicines)").all().map((c) => c.name)
+if (!medicineCols.includes('notes')) {
+  db.prepare('ALTER TABLE refill_medicines ADD COLUMN notes TEXT').run()
+}
+
 // task_templates seed
 const templateCount = db.prepare('SELECT COUNT(*) AS n FROM task_templates').get().n
 if (templateCount === 0) {

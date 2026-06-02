@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 import {
@@ -11,6 +12,7 @@ import {
   updateWorkflowStatus,
 } from '../services/refillSchedules'
 import { getStaff } from '../services/api'
+import { getEffectiveRole } from '../services/permissions'
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -645,12 +647,17 @@ function ScheduleCard({ s, staffMap, onEdit, onPause, onResume, onCancel, onAdva
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function PatientRefillCenter() {
+  const { user } = useAuth()
   const { toasts, add: showToast, remove: removeToast } = useToast()
   const [schedules, setSchedules] = useState([])
   const [staff, setStaff] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [advancingId, setAdvancingId] = useState(null)
+
+  const effectiveRole = getEffectiveRole(user)
+  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'decision_manager' || effectiveRole === 'sales_manager'
+  const canCreate = isAdminOrManager
 
   // UI state
   const [showForm, setShowForm] = useState(false)
@@ -678,7 +685,7 @@ export default function PatientRefillCenter() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [showToast])
 
   useEffect(() => { load() }, [load])
 
@@ -867,15 +874,17 @@ export default function PatientRefillCenter() {
               <p className="text-xs text-slate-500">Manage refill schedules and workflow tasks</p>
             </div>
           </div>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0A3D91] text-white text-sm font-semibold hover:bg-blue-800 transition-colors shadow-sm shrink-0"
-          >
-            <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            New Schedule
-          </button>
+          {canCreate && (
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0A3D91] text-white text-sm font-semibold hover:bg-blue-800 transition-colors shadow-sm shrink-0"
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              New Schedule
+            </button>
+          )}
         </div>
       </div>
 

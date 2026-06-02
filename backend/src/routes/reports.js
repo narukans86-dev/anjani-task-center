@@ -7,10 +7,35 @@ const router = express.Router()
 
 const today = () => new Date().toISOString().slice(0, 10)
 
+// ── Middleware: Role Checks ────────────────────────────────────────────────
+
+function adminOnly(req, res, next) {
+  if (req.currentUser?.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required for this report.' })
+  }
+  next()
+}
+
+/**
+ * Filter SQL by staff_id if user is standard staff.
+ * Admins and Managers (like Rakesh sales_manager) see all by default.
+ */
+function getStaffFilter(user) {
+  const isStaff = user.role === 'staff' && user.access_role !== 'sales_manager'
+  if (isStaff && user.staff_id) {
+    return {
+      clause: ' AND (rs.assigned_sales_staff_id = ? OR rs.assigned_purchase_staff_id = ?)',
+      params: [user.staff_id, user.staff_id],
+    }
+  }
+  return { clause: '', params: [] }
+}
+
+// ── Standard Reports (Admin Only) ──────────────────────────────────────────
+
 // GET /api/reports/staff-performance
-router.get('/staff-performance', (_req, res) => {
+router.get('/staff-performance', adminOnly, (_req, res) => {
   const date = today()
-  // LEFT JOIN from staff so every active staff member appears even with 0 tasks.
   const rows = db.prepare(`
     SELECT
       s.id AS assigned_to,
@@ -31,7 +56,7 @@ router.get('/staff-performance', (_req, res) => {
 })
 
 // GET /api/reports/department
-router.get('/department', (_req, res) => {
+router.get('/department', adminOnly, (_req, res) => {
   const date = today()
   const rows = db.prepare(`
     SELECT
@@ -49,7 +74,7 @@ router.get('/department', (_req, res) => {
 })
 
 // GET /api/reports/daily — today's summary
-router.get('/daily', (_req, res) => {
+router.get('/daily', adminOnly, (_req, res) => {
   const date = today()
 
   const tasks = db.prepare(`
@@ -59,18 +84,21 @@ router.get('/daily', (_req, res) => {
       SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) AS pending,
       SUM(CASE WHEN due_date < ? AND status NOT IN ('completed','cancelled') THEN 1 ELSE 0 END) AS delayed
     FROM tasks WHERE due_date = ?
-  `).get(date, date)
+  `).get(date, date) || { total: 0, completed: 0, pending: 0, delayed: 0 }
 
   const clStat = (type) => {
-    const total = db.prepare(
+    const totalRow = db.prepare(
       "SELECT COUNT(*) AS n FROM checklists WHERE active=1 AND type=?"
-    ).get(type).n
-    const completed = db.prepare(`
+    ).get(type)
+    const total = totalRow ? totalRow.n : 0
+
+    const completedRow = db.prepare(`
       SELECT COUNT(DISTINCT c.id) AS n
       FROM checklists c
       JOIN checklist_completions cc ON cc.checklist_id=c.id AND cc.completed_date=?
       WHERE c.active=1 AND c.type=?
-    `).get(date, type).n
+    `).get(date, type)
+    const completed = completedRow ? completedRow.n : 0
     return { total, completed }
   }
 
@@ -85,7 +113,7 @@ router.get('/daily', (_req, res) => {
 })
 
 // GET /api/reports/priority
-router.get('/priority', (_req, res) => {
+router.get('/priority', adminOnly, (_req, res) => {
   const rows = db.prepare(`
     SELECT
       priority,
@@ -100,28 +128,50 @@ router.get('/priority', (_req, res) => {
   res.json(rows)
 })
 
-// ── Refill Dashboard Summary ──────────────────────────────────────────────
+// ── Refill Dashboard Summary (Auth Required) ──────────────────────────────
+
 // GET /api/reports/refill-summary
-router.get('/refill-summary', (_req, res) => {
+router.get('/refill-summary', (req, res) => {
+  const user = req.currentUser
   const todayStr = today()
   const in7 = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10)
-  const in30 = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+  const in14 = new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)
 
-  const total        = db.prepare("SELECT COUNT(*) AS n FROM refill_schedules WHERE scheduler_status='active'").get().n
-  const dueNext7     = db.prepare("SELECT COUNT(*) AS n FROM refill_schedules WHERE scheduler_status='active' AND next_refill_date BETWEEN ? AND ?").get(todayStr, in7).n
-  const stockCheck   = db.prepare("SELECT COUNT(*) AS n FROM refill_schedules WHERE workflow_status='stock_check_pending'").get().n
-  const reorderReq   = db.prepare("SELECT COUNT(*) AS n FROM refill_schedules WHERE workflow_status IN ('reorder_required','reorder_placed')").get().n
-  const callPending  = db.prepare("SELECT COUNT(*) AS n FROM refill_schedules WHERE workflow_status='patient_call_pending'").get().n
-  const dispPending  = db.prepare("SELECT COUNT(*) AS n FROM refill_schedules WHERE workflow_status='dispatch_pending'").get().n
-  const shiprocket   = db.prepare("SELECT COUNT(*) AS n FROM refill_schedules WHERE workflow_status='dispatch_pending' AND delivery_mode='courier'").get().n
+  // Use alias rs to match getStaffFilter
+  let where = "WHERE rs.scheduler_status='active'"
+  let p = []
+  
+  const filter = getStaffFilter(user)
+  if (filter.clause) {
+    where += filter.clause
+    p.push(...filter.params)
+  }
+
+  const getCount = (sql, params = []) => {
+    const row = db.prepare(sql).get(...params)
+    return row ? row.n : 0
+  }
+
+  const total        = getCount(`SELECT COUNT(*) AS n FROM refill_schedules rs ${where}`, p)
+  const dueNext7     = getCount(`SELECT COUNT(*) AS n FROM refill_schedules rs ${where} AND rs.next_refill_date BETWEEN ? AND ?`, [...p, todayStr, in7])
+  
+  // Re-base filter for specific statuses
+  const baseWhere = filter.clause ? `WHERE 1=1 ${filter.clause}` : ''
+  const baseParams = filter.params
+
+  const stockCheck   = getCount(`SELECT COUNT(*) AS n FROM refill_schedules rs ${baseWhere || 'WHERE 1=1'} AND rs.workflow_status='stock_check_pending'`, baseParams)
+  const reorderReq   = getCount(`SELECT COUNT(*) AS n FROM refill_schedules rs ${baseWhere || 'WHERE 1=1'} AND rs.workflow_status IN ('reorder_required','reorder_placed')`, baseParams)
+  const callPending  = getCount(`SELECT COUNT(*) AS n FROM refill_schedules rs ${baseWhere || 'WHERE 1=1'} AND rs.workflow_status='patient_call_pending'`, baseParams)
+  const dispPending  = getCount(`SELECT COUNT(*) AS n FROM refill_schedules rs ${baseWhere || 'WHERE 1=1'} AND rs.workflow_status='dispatch_pending'`, baseParams)
+  const shiprocket   = getCount(`SELECT COUNT(*) AS n FROM refill_schedules rs ${baseWhere || 'WHERE 1=1'} AND rs.workflow_status='dispatch_pending' AND rs.delivery_mode='courier'`, baseParams)
 
   // Weekend refill alerts — next_refill_date falls on Sat/Sun within 14 days
-  const weekendRows  = db.prepare(`
-    SELECT COUNT(*) AS n FROM refill_schedules
-    WHERE scheduler_status='active'
-      AND next_refill_date BETWEEN ? AND ?
-      AND strftime('%w', next_refill_date) IN ('0','6')
-  `).get(todayStr, new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10)).n
+  const weekendAlerts = getCount(`
+    SELECT COUNT(*) AS n FROM refill_schedules rs
+    ${where}
+      AND rs.next_refill_date BETWEEN ? AND ?
+      AND strftime('%w', rs.next_refill_date) IN ('0','6')
+  `, [...p, todayStr, in14])
 
   res.json({
     total,
@@ -130,15 +180,16 @@ router.get('/refill-summary', (_req, res) => {
     reorderRequired: reorderReq,
     callPending,
     dispatchPending: dispPending,
-    weekendAlerts: weekendRows,
+    weekendAlerts,
     shiprocketPending: shiprocket,
   })
 })
 
-// ── Refill Reports ────────────────────────────────────────────────────────
+// ── Refill Reports (Auth Required) ─────────────────────────────────────────
 
 // GET /api/reports/refill-upcoming?days=7&priority=&patientType=
 router.get('/refill-upcoming', (req, res) => {
+  const user = req.currentUser
   const days = Math.min(90, Math.max(1, parseInt(req.query.days ?? 7, 10)))
   const todayStr = today()
   const until = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
@@ -153,6 +204,13 @@ router.get('/refill-upcoming', (req, res) => {
       AND rs.next_refill_date BETWEEN ? AND ?
   `
   const params = [todayStr, until]
+
+  const filter = getStaffFilter(user)
+  if (filter.clause) {
+    sql += filter.clause
+    params.push(...filter.params)
+  }
+
   if (priority)    { sql += ' AND rs.priority = ?';      params.push(priority) }
   if (patientType) { sql += ' AND rs.patient_type = ?';  params.push(patientType) }
   if (search)      { sql += ' AND rs.patient_name LIKE ?'; params.push(`%${search}%`) }
@@ -164,8 +222,8 @@ router.get('/refill-upcoming', (req, res) => {
 
 // GET /api/reports/refill-missed?days=30
 router.get('/refill-missed', (req, res) => {
+  const user = req.currentUser
   const days = Math.min(180, Math.max(1, parseInt(req.query.days ?? 30, 10)))
-  const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
   const todayStr = today()
   const { priority, patientType, search } = req.query
 
@@ -178,6 +236,13 @@ router.get('/refill-missed', (req, res) => {
       AND rs.workflow_status NOT IN ('delivered','cancelled')
   `
   const params = [todayStr]
+
+  const filter = getStaffFilter(user)
+  if (filter.clause) {
+    sql += filter.clause
+    params.push(...filter.params)
+  }
+
   if (priority)    { sql += ' AND rs.priority = ?';       params.push(priority) }
   if (patientType) { sql += ' AND rs.patient_type = ?';   params.push(patientType) }
   if (search)      { sql += ' AND rs.patient_name LIKE ?'; params.push(`%${search}%`) }
@@ -189,6 +254,7 @@ router.get('/refill-missed', (req, res) => {
 
 // GET /api/reports/refill-reorder?search=
 router.get('/refill-reorder', (req, res) => {
+  const user = req.currentUser
   const { search, priority } = req.query
   let sql = `
     SELECT rs.*, s2.name AS purchase_staff_name, s3.name AS purchase_manager_name
@@ -198,6 +264,13 @@ router.get('/refill-reorder', (req, res) => {
     WHERE rs.workflow_status IN ('reorder_required','reorder_placed')
   `
   const params = []
+
+  const filter = getStaffFilter(user)
+  if (filter.clause) {
+    sql += filter.clause
+    params.push(...filter.params)
+  }
+
   if (priority) { sql += ' AND rs.priority = ?';       params.push(priority) }
   if (search)   { sql += ' AND rs.patient_name LIKE ?'; params.push(`%${search}%`) }
   sql += ' ORDER BY rs.priority DESC, rs.next_refill_date ASC'
@@ -208,6 +281,7 @@ router.get('/refill-reorder', (req, res) => {
 
 // GET /api/reports/refill-call-pending?search=
 router.get('/refill-call-pending', (req, res) => {
+  const user = req.currentUser
   const { search, priority, patientType } = req.query
   let sql = `
     SELECT rs.*, s1.name AS sales_staff_name
@@ -216,6 +290,13 @@ router.get('/refill-call-pending', (req, res) => {
     WHERE rs.workflow_status = 'patient_call_pending'
   `
   const params = []
+
+  const filter = getStaffFilter(user)
+  if (filter.clause) {
+    sql += filter.clause
+    params.push(...filter.params)
+  }
+
   if (priority)    { sql += ' AND rs.priority = ?';       params.push(priority) }
   if (patientType) { sql += ' AND rs.patient_type = ?';   params.push(patientType) }
   if (search)      { sql += ' AND rs.patient_name LIKE ?'; params.push(`%${search}%`) }
@@ -227,6 +308,7 @@ router.get('/refill-call-pending', (req, res) => {
 
 // GET /api/reports/refill-dispatch-pending?deliveryMode=
 router.get('/refill-dispatch-pending', (req, res) => {
+  const user = req.currentUser
   const { search, deliveryMode, priority } = req.query
   let sql = `
     SELECT rs.*, s1.name AS sales_staff_name
@@ -235,6 +317,13 @@ router.get('/refill-dispatch-pending', (req, res) => {
     WHERE rs.workflow_status = 'dispatch_pending'
   `
   const params = []
+
+  const filter = getStaffFilter(user)
+  if (filter.clause) {
+    sql += filter.clause
+    params.push(...filter.params)
+  }
+
   if (deliveryMode) { sql += ' AND rs.delivery_mode = ?';    params.push(deliveryMode) }
   if (priority)     { sql += ' AND rs.priority = ?';         params.push(priority) }
   if (search)       { sql += ' AND rs.patient_name LIKE ?';  params.push(`%${search}%`) }
@@ -245,8 +334,9 @@ router.get('/refill-dispatch-pending', (req, res) => {
 })
 
 // GET /api/reports/refill-staff-performance
-router.get('/refill-staff-performance', (_req, res) => {
-  const rows = db.prepare(`
+router.get('/refill-staff-performance', (req, res) => {
+  const user = req.currentUser
+  let sql = `
     SELECT
       s.name AS staff_name,
       s.department,
@@ -260,14 +350,28 @@ router.get('/refill-staff-performance', (_req, res) => {
     FROM staff s
     LEFT JOIN refill_schedules rs ON s.id = rs.assigned_sales_staff_id
     WHERE s.status = 'active'
+  `
+  const params = []
+
+  // If standard staff, they only see their own performance line
+  const isStaff = user.role === 'staff' && user.access_role !== 'sales_manager'
+  if (isStaff && user.staff_id) {
+    sql += ' AND s.id = ?'
+    params.push(user.staff_id)
+  }
+
+  sql += `
     GROUP BY s.id, s.name, s.department
     ORDER BY delivered DESC
-  `).all()
+  `
+
+  const rows = db.prepare(sql).all(...params)
   res.json({ total: rows.length, data: rows })
 })
 
 // GET /api/reports/refill-shiprocket
 router.get('/refill-shiprocket', (req, res) => {
+  const user = req.currentUser
   const { search, priority } = req.query
   let sql = `
     SELECT rs.*, s1.name AS sales_staff_name
@@ -277,6 +381,13 @@ router.get('/refill-shiprocket', (req, res) => {
       AND rs.delivery_mode = 'courier'
   `
   const params = []
+
+  const filter = getStaffFilter(user)
+  if (filter.clause) {
+    sql += filter.clause
+    params.push(...filter.params)
+  }
+
   if (priority) { sql += ' AND rs.priority = ?';       params.push(priority) }
   if (search)   { sql += ' AND rs.patient_name LIKE ?'; params.push(`%${search}%`) }
   sql += ' ORDER BY rs.priority DESC, rs.next_refill_date ASC'

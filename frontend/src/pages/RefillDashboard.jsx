@@ -1,13 +1,33 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
+import { useAuth } from '../context/AuthContext'
+import { getEffectiveRole } from '../services/permissions'
 
 // ── API helper ────────────────────────────────────────────────────────────
 
-async function apiFetch(path) {
-  const res = await fetch(`/api${path}`)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+function getAuthToken() {
+  try {
+    const raw = localStorage.getItem('anjani_user')
+    return raw ? (JSON.parse(raw)?.token ?? null) : null
+  } catch { return null }
+}
+
+async function apiFetch(path, options = {}) {
+  const token = getAuthToken()
+  const res = await fetch(`/api${path}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+    ...options,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw new Error(body.error ?? `HTTP ${res.status}`)
+  }
   return res.json()
 }
 
@@ -90,7 +110,7 @@ function StatCard({ label, value, color, icon, onClick }) {
         <span className="text-xs font-semibold uppercase tracking-wide opacity-70">{label}</span>
         <span className="text-lg">{icon}</span>
       </div>
-      <span className="text-3xl font-bold">{value ?? '—'}</span>
+      <span className="text-3xl font-bold">{value ?? 0}</span>
     </button>
   )
 }
@@ -111,9 +131,18 @@ function QuickBtn({ label, icon, onClick, color = 'bg-white border border-[#D1DC
 
 // ── Report section ────────────────────────────────────────────────────────
 
-function ReportTable({ columns, rows, emptyMsg = 'No records found.' }) {
-  if (!rows) return <div className="py-8 text-center text-slate-400 text-sm">Loading…</div>
+function ReportTable({ columns, rows, loading, emptyMsg = 'No records found.' }) {
+  if (loading) return (
+    <div className="py-8 text-center text-slate-400 text-sm flex items-center justify-center gap-2">
+      <svg className="w-4 h-4 animate-spin text-[#0A3D91]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+      </svg>
+      Loading…
+    </div>
+  )
+  if (!rows) return <div className="py-8 text-center text-slate-400 text-sm">Click 'Run Report' to load data.</div>
   if (!rows.length) return <div className="py-8 text-center text-slate-400 text-sm">{emptyMsg}</div>
+  
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <table className="min-w-full text-sm">
@@ -176,16 +205,21 @@ function PriBadge({ value }) {
 
 // ── Main component ────────────────────────────────────────────────────────
 
-const REPORT_KEYS = [
-  'upcoming', 'missed', 'reorder', 'callPending', 'dispatchPending', 'staffPerf', 'shiprocket'
-]
+const INITIAL_SUMMARY = {
+  total: 0, dueNext7: 0, stockCheck: 0, reorderRequired: 0,
+  callPending: 0, dispatchPending: 0, weekendAlerts: 0, shiprocketPending: 0,
+}
 
 export default function RefillDashboard() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { toasts, showToast, removeToast } = useToast()
 
-  const [summary, setSummary] = useState(null)
+  const [summary, setSummary] = useState(INITIAL_SUMMARY)
   const [summaryLoading, setSummaryLoading] = useState(true)
+
+  const effectiveRole = getEffectiveRole(user)
+  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'decision_manager' || effectiveRole === 'sales_manager'
 
   // Report data keyed by report name
   const [reportData, setReportData] = useState({})
@@ -208,13 +242,14 @@ export default function RefillDashboard() {
     setSummaryLoading(true)
     try {
       const data = await apiFetch('/reports/refill-summary')
-      setSummary(data)
-    } catch {
-      showToast('Failed to load dashboard summary', 'error')
+      setSummary(data || INITIAL_SUMMARY)
+    } catch (err) {
+      showToast('Failed to load dashboard summary: ' + err.message, 'error')
+      setSummary(INITIAL_SUMMARY)
     } finally {
       setSummaryLoading(false)
     }
-  }, [])
+  }, [showToast])
 
   useEffect(() => { loadSummary() }, [loadSummary])
 
@@ -238,12 +273,12 @@ export default function RefillDashboard() {
       }[key]
       const result = await apiFetch(`${endpoint}${qs ? `?${qs}` : ''}`)
       setReportData((p) => ({ ...p, [key]: result.data ?? result }))
-    } catch {
-      showToast(`Failed to load report: ${key}`, 'error')
+    } catch (err) {
+      showToast(`Failed to load report: ${err.message}`, 'error')
     } finally {
       setReportLoading((p) => ({ ...p, [key]: false }))
     }
-  }, [filters])
+  }, [filters, showToast])
 
   const setFilter = (key, field, value) => {
     setFilters((p) => ({ ...p, [key]: { ...p[key], [field]: value } }))
@@ -339,16 +374,22 @@ export default function RefillDashboard() {
     )
   }
 
-  function ExportBar({ reportKey, filename, columns }) {
+  function ExportBar({ reportKey, filename }) {
     const rows = reportData[reportKey]
+    const loading = reportLoading[reportKey]
     return (
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => loadReport(reportKey)}
-          disabled={reportLoading[reportKey]}
-          className="px-3 py-1.5 rounded-lg bg-[#0A3D91] text-white text-xs font-semibold hover:bg-blue-800 transition-colors disabled:opacity-60"
+          disabled={loading}
+          className="px-3 py-1.5 rounded-lg bg-[#0A3D91] text-white text-xs font-semibold hover:bg-blue-800 transition-colors disabled:opacity-60 flex items-center gap-2"
         >
-          {reportLoading[reportKey] ? 'Loading…' : 'Run Report'}
+          {loading && (
+            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+            </svg>
+          )}
+          {loading ? 'Loading…' : 'Run Report'}
         </button>
         {rows?.length > 0 && (
           <>
@@ -379,7 +420,7 @@ export default function RefillDashboard() {
 
   // ── Render ────────────────────────────────────────────────────────────
 
-  const S = summaryLoading ? {} : (summary ?? {})
+  const S = summary || INITIAL_SUMMARY
 
   return (
     <div className="space-y-6 p-4 sm:p-6 max-w-7xl mx-auto print:p-0">
@@ -393,9 +434,10 @@ export default function RefillDashboard() {
         </div>
         <button
           onClick={loadSummary}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+          disabled={summaryLoading}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
         >
-          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg viewBox="0 0 24 24" className={`w-4 h-4 ${summaryLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           Refresh
@@ -472,12 +514,14 @@ export default function RefillDashboard() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 print:hidden">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Quick Actions</p>
         <div className="flex flex-wrap gap-2">
-          <QuickBtn
-            label="Add Patient Schedule"
-            icon="➕"
-            color="bg-[#0A3D91] text-white hover:bg-blue-800"
-            onClick={() => navigate('/patient-refill')}
-          />
+          {isAdminOrManager && (
+            <QuickBtn
+              label="Add Patient Schedule"
+              icon="➕"
+              color="bg-[#0A3D91] text-white hover:bg-blue-800"
+              onClick={() => navigate('/patient-refill')}
+            />
+          )}
           <QuickBtn
             label="View Refill Calendar"
             icon="📆"
@@ -515,7 +559,12 @@ export default function RefillDashboard() {
             </FilterInput>
             <ExportBar reportKey="upcoming" filename="refill-upcoming" />
           </div>
-          <ReportTable columns={upcomingCols} rows={reportData.upcoming} emptyMsg="Run report to see upcoming refills." />
+          <ReportTable 
+            columns={upcomingCols} 
+            rows={reportData.upcoming} 
+            loading={reportLoading.upcoming}
+            emptyMsg="Run report to see upcoming refills." 
+          />
         </Section>
 
         {/* 2. Missed Refill Workflow */}
@@ -533,7 +582,12 @@ export default function RefillDashboard() {
             </FilterInput>
             <ExportBar reportKey="missed" filename="refill-missed" />
           </div>
-          <ReportTable columns={missedCols} rows={reportData.missed} emptyMsg="Run report to see missed refills." />
+          <ReportTable 
+            columns={missedCols} 
+            rows={reportData.missed} 
+            loading={reportLoading.missed}
+            emptyMsg="Run report to see missed refills." 
+          />
         </Section>
 
         {/* 3. Reorder Required */}
@@ -546,7 +600,12 @@ export default function RefillDashboard() {
             </FilterInput>
             <ExportBar reportKey="reorder" filename="refill-reorder" />
           </div>
-          <ReportTable columns={reorderCols} rows={reportData.reorder} emptyMsg="Run report to see reorder items." />
+          <ReportTable 
+            columns={reorderCols} 
+            rows={reportData.reorder} 
+            loading={reportLoading.reorder}
+            emptyMsg="Run report to see reorder items." 
+          />
         </Section>
 
         {/* 4. Patient Call Pending */}
@@ -563,7 +622,12 @@ export default function RefillDashboard() {
             </FilterInput>
             <ExportBar reportKey="callPending" filename="refill-call-pending" />
           </div>
-          <ReportTable columns={callCols} rows={reportData.callPending} emptyMsg="Run report to see call-pending patients." />
+          <ReportTable 
+            columns={callCols} 
+            rows={reportData.callPending} 
+            loading={reportLoading.callPending}
+            emptyMsg="Run report to see call-pending patients." 
+          />
         </Section>
 
         {/* 5. Dispatch Pending */}
@@ -580,7 +644,12 @@ export default function RefillDashboard() {
             </FilterInput>
             <ExportBar reportKey="dispatchPending" filename="refill-dispatch-pending" />
           </div>
-          <ReportTable columns={dispatchCols} rows={reportData.dispatchPending} emptyMsg="Run report to see dispatch-pending items." />
+          <ReportTable 
+            columns={dispatchCols} 
+            rows={reportData.dispatchPending} 
+            loading={reportLoading.dispatchPending}
+            emptyMsg="Run report to see dispatch-pending items." 
+          />
         </Section>
 
         {/* 6. Staff-wise Performance */}
@@ -588,7 +657,12 @@ export default function RefillDashboard() {
           <div className="flex flex-wrap gap-2 items-center print:hidden">
             <ExportBar reportKey="staffPerf" filename="refill-staff-performance" />
           </div>
-          <ReportTable columns={staffPerfCols} rows={reportData.staffPerf} emptyMsg="Run report to see staff performance." />
+          <ReportTable 
+            columns={staffPerfCols} 
+            rows={reportData.staffPerf} 
+            loading={reportLoading.staffPerf}
+            emptyMsg="Run report to see staff performance." 
+          />
         </Section>
 
         {/* 7. Shiprocket Pending */}
@@ -604,6 +678,7 @@ export default function RefillDashboard() {
           <ReportTable
             columns={dispatchCols}
             rows={reportData.shiprocket}
+            loading={reportLoading.shiprocket}
             emptyMsg="Run report to see Shiprocket courier-pending dispatches."
           />
         </Section>
