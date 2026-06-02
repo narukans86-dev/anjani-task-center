@@ -53,18 +53,22 @@ export default function TopBar({ onMenuClick }) {
       )
 
       for (const n of newUnreadNotifications) {
-        // Conditions for showing browser notifications
         const shouldShowBrowserNotification =
           getBrowserNotificationPermission() === 'granted' &&
           (
+            // Tasks: critical/high/overdue
             (n.type === 'task' && (n.priority === 'critical' || n.priority === 'high' || n.title.startsWith('Overdue'))) ||
+            // Checklists: incomplete
             (n.type === 'checklist' && n.title.startsWith('Incomplete')) ||
-            (n.type === 'system' && n.title.startsWith('System backup reminder')) // Added system backup reminder
+            // System reminders
+            (n.type === 'system' && n.title.startsWith('System backup reminder')) ||
+            // Refill: action-required or high/urgent priority — always push
+            (n.type === 'refill' && (n.requires_action || n.priority === 'high' || n.priority === 'urgent' || n.priority === 'critical'))
           )
 
         if (shouldShowBrowserNotification) {
           showBrowserNotification(n.title, n.message || 'Check your Anjani Task Center for details.')
-          prevNotificationIds.current.add(n.id) // Mark as shown
+          prevNotificationIds.current.add(n.id)
         }
       }
 
