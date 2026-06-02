@@ -268,8 +268,12 @@ function MedicineRow({ med, idx, onChange, onRemove, canRemove }) {
 
 function ScheduleForm({ initial, staff, onSave, onClose, saving }) {
   const [form, setForm] = useState(initial ?? DEFAULT_FORM)
+  const [validationError, setValidationError] = useState('')
 
-  const set = (field, val) => setForm((f) => ({ ...f, [field]: val }))
+  const set = (field, val) => {
+    setForm((f) => ({ ...f, [field]: val }))
+    setValidationError('')
+  }
 
   const updateMed = (idx, val) => setForm((f) => {
     const meds = [...f.medicines]; meds[idx] = val; return { ...f, medicines: meds }
@@ -284,7 +288,15 @@ function ScheduleForm({ initial, staff, onSave, onClose, saving }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!form.patientName.trim()) return
+    if (!form.patientName.trim()) {
+      setValidationError('Patient name is required.')
+      return
+    }
+    if (!form.refillDate) {
+      setValidationError('Refill / Start Date is required.')
+      return
+    }
+    setValidationError('')
     onSave(form)
   }
 
@@ -411,6 +423,13 @@ function ScheduleForm({ initial, staff, onSave, onClose, saving }) {
           <section>
             <Textarea label="Notes" placeholder="Any special instructions or remarks…" value={form.notes} onChange={(e) => set('notes', e.target.value)} />
           </section>
+
+          {/* Validation error */}
+          {validationError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-600">
+              {validationError}
+            </p>
+          )}
 
           {/* Footer */}
           <div className="flex gap-3 pt-2 pb-4">
@@ -626,7 +645,7 @@ function ScheduleCard({ s, staffMap, onEdit, onPause, onResume, onCancel, onAdva
 // ── Main page ──────────────────────────────────────────────────────────────
 
 export default function PatientRefillCenter() {
-  const { toasts, showToast, removeToast } = useToast()
+  const { toasts, add: showToast, remove: removeToast } = useToast()
   const [schedules, setSchedules] = useState([])
   const [staff, setStaff] = useState([])
   const [loading, setLoading] = useState(true)
@@ -814,10 +833,7 @@ export default function PatientRefillCenter() {
 
   return (
     <div className="min-h-full bg-[#F4F7FD]">
-      {/* Toast */}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
-        {toasts.map((t) => <Toast key={t.id} toast={t} onRemove={removeToast} />)}
-      </div>
+      <Toast toasts={toasts} remove={removeToast} />
 
       {/* Modals */}
       {showForm && (

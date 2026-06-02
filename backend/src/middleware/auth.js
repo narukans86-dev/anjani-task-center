@@ -20,4 +20,15 @@ function requireAdmin(req, res, next) {
   })
 }
 
-module.exports = { requireAuth, requireAdmin }
+// Allows admin OR standard decision_manager (role='manager', no special access_role).
+// Blocks sales_manager (access_role='sales_manager') and staff.
+function requireDecisionManagerOrAbove(req, res, next) {
+  requireAuth(req, res, () => {
+    const u = req.currentUser
+    if (u.role === 'admin') return next()
+    if (u.role === 'manager' && (!u.access_role || u.access_role === 'decision_manager')) return next()
+    return res.status(403).json({ error: 'Manager or Admin access required.' })
+  })
+}
+
+module.exports = { requireAuth, requireAdmin, requireDecisionManagerOrAbove }

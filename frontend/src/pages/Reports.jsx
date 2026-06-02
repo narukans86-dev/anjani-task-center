@@ -3,6 +3,7 @@ import {
   getStaffPerformanceReport, getDepartmentReport, getDailyReport,
   getPriorityReport, getStaff, getTasks,
 } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -331,6 +332,7 @@ const TABS = [
 ]
 
 export default function Reports() {
+  const { user } = useAuth()
   const [tab, setTab] = useState('staff')
   const [loading, setLoading] = useState(true)
 
@@ -364,6 +366,18 @@ export default function Reports() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  if (user?.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
+        <svg viewBox="0 0 24 24" className="w-12 h-12 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        <p className="text-[#111827] font-semibold">Access Restricted</p>
+        <p className="text-slate-500 text-sm">Reports are only accessible to Administrators.</p>
+      </div>
+    )
+  }
 
   function exportJSON() {
     const payload = {

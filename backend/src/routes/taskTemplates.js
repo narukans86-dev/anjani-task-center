@@ -2,6 +2,7 @@
 
 const express = require('express')
 const db = require('../database')
+const { requireAdmin } = require('../middleware/auth')
 
 const router = express.Router()
 
@@ -18,8 +19,8 @@ router.get('/', (req, res) => {
   res.json(db.prepare(sql).all(...params))
 })
 
-// POST /api/task-templates — create a template
-router.post('/', (req, res) => {
+// POST /api/task-templates — create a template (admin only)
+router.post('/', requireAdmin, (req, res) => {
   const { title, description, category, priority, department, assigned_to, active } = req.body
   if (!title) return res.status(400).json({ error: 'Title is required.' })
 
@@ -39,8 +40,8 @@ router.post('/', (req, res) => {
   res.status(201).json(db.prepare('SELECT * FROM task_templates WHERE id = ?').get(info.lastInsertRowid))
 })
 
-// PUT /api/task-templates/:id — update a template
-router.put('/:id', (req, res) => {
+// PUT /api/task-templates/:id — update a template (admin only)
+router.put('/:id', requireAdmin, (req, res) => {
   const { id } = req.params
   const existing = db.prepare('SELECT * FROM task_templates WHERE id = ?').get(id)
   if (!existing) return res.status(404).json({ error: 'Template not found.' })
@@ -65,8 +66,8 @@ router.put('/:id', (req, res) => {
   res.json(db.prepare('SELECT * FROM task_templates WHERE id = ?').get(id))
 })
 
-// DELETE /api/task-templates/:id — soft delete
-router.delete('/:id', (req, res) => {
+// DELETE /api/task-templates/:id — soft delete (admin only)
+router.delete('/:id', requireAdmin, (req, res) => {
   const { id } = req.params
   const existing = db.prepare('SELECT * FROM task_templates WHERE id = ?').get(id)
   if (!existing) return res.status(404).json({ error: 'Template not found.' })

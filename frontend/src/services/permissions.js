@@ -54,11 +54,11 @@ export const ROUTE_ROLES = {
   staff:           ['admin', 'decision_manager'],
   audit:           ['admin'],
   settings:        ['admin'],
-  reports:         ['admin', 'decision_manager', 'sales_manager', 'viewer'],
+  reports:         ['admin'],
   calendar:        ['admin', 'decision_manager', 'sales_manager', 'staff', 'viewer'],
   patientRefill:   ['admin', 'decision_manager', 'sales_manager', 'staff'],
   refillDashboard: ['admin', 'decision_manager', 'sales_manager'],
-  quoteEditor:     ['admin', 'decision_manager'],
+  quoteEditor:     ['admin'],
 }
 
 export function hasPermission(user, permission) {

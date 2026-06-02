@@ -23,8 +23,8 @@ function withStaffName(user) {
   return { ...sanitize(user), staff_name: s?.name ?? null }
 }
 
-// GET /api/users — list all (requireAuth applied globally in index.js)
-router.get('/', (_req, res) => {
+// GET /api/users — admin only
+router.get('/', requireAdmin, (_req, res) => {
   const rows = db.prepare(`
     SELECT u.*, s.name AS staff_name
     FROM users u

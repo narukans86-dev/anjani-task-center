@@ -73,6 +73,8 @@ export const getAuditLogs = (page = 1, limit = 50) =>
   req(`/audit?page=${page}&limit=${limit}`)
 export const createAuditLog = (entry) =>
   req('/audit', { method: 'POST', body: JSON.stringify(entry) })
+export const clearAuditLogs = () =>
+  req('/audit/clear', { method: 'DELETE' })
 
 // ── Reports ────────────────────────────────────────────────────────────────
 export const getStaffPerformanceReport = () => req('/reports/staff-performance')

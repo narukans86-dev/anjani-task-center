@@ -1,6 +1,18 @@
+function getAuthToken() {
+  try {
+    const raw = localStorage.getItem('anjani_user')
+    return raw ? (JSON.parse(raw)?.token ?? null) : null
+  } catch { return null }
+}
+
 async function apiFetch(path, options = {}) {
+  const token = getAuthToken()
   const res = await fetch(`/api${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
     ...options,
   })
   if (!res.ok) {

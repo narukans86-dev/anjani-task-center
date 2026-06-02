@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { getStaff, getDailyRoutineTemplates } from '../services/api'
+import { getEffectiveRole } from '../services/permissions'
 import {
   DAILY_ROUTINE_STAFF,
   FREE_TIME_PRIORITIES,
@@ -162,16 +163,21 @@ export default function DailyRoutine() {
   }, [routineTemplates, loading, apiError])
 
   const visibleStaff = useMemo(() => {
-    if (user?.role === 'staff') {
-      return processedStaff.filter((staff) => staff.name === user.name)
-    }
-    return processedStaff
+    const effectiveRole = getEffectiveRole(user)
+    // Only admin sees all staff cards
+    if (effectiveRole === 'admin') return processedStaff
+    // Everyone else sees only their own card
+    // Match by staffId first (reliable), fall back to display name
+    return processedStaff.filter(
+      (s) => (user?.staffId != null && s.id === user.staffId) || s.name === user?.name
+    )
   }, [user, processedStaff])
 
-  const canEditStaff = (staffName) => {
-    if (user?.role === 'admin' || user?.role === 'manager') return true
-    if (user?.role === 'staff') return user.name === staffName
-    return false
+  const canEditStaff = (staffName, staffId) => {
+    if (getEffectiveRole(user) === 'admin') return true
+    // Non-admin: own card only — prefer staffId match, fall back to name
+    if (staffId != null && user?.staffId != null) return user.staffId === staffId
+    return user?.name === staffName
   }
 
   function updateState(next) {
@@ -268,7 +274,7 @@ export default function DailyRoutine() {
 
       {visibleStaff.length === 0 ? (
         <section className="rounded-2xl border border-[#D1DCF0] bg-white/95 p-8 text-center">
-          <p className="text-slate-600 text-sm">No routine card is assigned to this staff login.</p>
+          <p className="text-slate-600 text-sm">No routine assigned for you yet.</p>
         </section>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
@@ -277,7 +283,7 @@ export default function DailyRoutine() {
               key={staff.name}
               staff={staff}
               checks={state.checks}
-              canEdit={canEditStaff(staff.name)}
+              canEdit={canEditStaff(staff.name, staff.id)}
               onToggle={toggleCheck}
             />
           ))}
@@ -317,7 +323,7 @@ export default function DailyRoutine() {
             </thead>
             <tbody className="divide-y divide-[#F0F4FF]">
               {visibleStaff.map((staff) => {
-                const canEdit = canEditStaff(staff.name)
+                const canEdit = canEditStaff(staff.name, staff.id)
                 return (
                   <tr key={staff.name}>
                     <td className="py-3 pr-3 align-top">

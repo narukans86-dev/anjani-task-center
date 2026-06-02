@@ -10,6 +10,8 @@ import {
   resetStaffSalesTargets,
   saveStaffSalesTargets,
 } from '../data/salesTargets'
+import { useAuth } from '../context/AuthContext'
+import { getEffectiveRole } from '../services/permissions'
 
 const inputCls = 'w-full rounded-lg border border-[#D1DCF0] bg-white px-3 py-2 text-sm text-[#111827] outline-none transition-colors focus:border-[#0A3D91] focus:ring-2 focus:ring-[#0A3D91]/10'
 
@@ -319,8 +321,20 @@ export default function Incentives() {
   const [targets, setTargets] = useState(() => getStaffSalesTargets())
   const [savedMessage, setSavedMessage] = useState('')
 
+  const { user } = useAuth()
+  const effectiveRole = getEffectiveRole(user)
+  const isManagerOrAdmin = effectiveRole === 'admin' || effectiveRole === 'decision_manager'
+
+  // Non-admin/manager roles see only their own target card
+  const visibleTargets = useMemo(() => {
+    if (isManagerOrAdmin) return targets
+    return targets.filter(
+      (t) => (user?.staffId != null && t.staffId === user.staffId) || t.staffName === user?.name
+    )
+  }, [targets, isManagerOrAdmin, user])
+
   const summary = useMemo(() => {
-    const activeTargets = targets.filter((target) => target.isActive)
+    const activeTargets = visibleTargets.filter((target) => target.isActive)
     const totalTarget = activeTargets.reduce((sum, target) => sum + target.dailySalesTarget, 0)
     const totalAchieved = activeTargets.reduce((sum, target) => sum + target.todaySalesAchieved, 0)
     const commissionLiability = activeTargets.reduce((sum, target) => {
@@ -346,7 +360,7 @@ export default function Incentives() {
       commissionLiability,
       itemCommissionLiability,
     }
-  }, [targets])
+  }, [visibleTargets])
 
   function updateTarget(updatedTarget) {
     setTargets((prev) => prev.map((target) => (
@@ -379,20 +393,22 @@ export default function Incentives() {
               Sales achieved is manually entered for now. Later this can connect to POS/RPOS or billing data.
             </p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              onClick={handleReset}
-              className="rounded-lg border border-[#D1DCF0] bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
-            >
-              Reset to Default
-            </button>
-            <button
-              onClick={handleSave}
-              className="rounded-lg bg-[#0A3D91] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0057D9]"
-            >
-              Save Targets
-            </button>
-          </div>
+          {isManagerOrAdmin && (
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                onClick={handleReset}
+                className="rounded-lg border border-[#D1DCF0] bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+              >
+                Reset to Default
+              </button>
+              <button
+                onClick={handleSave}
+                className="rounded-lg bg-[#0A3D91] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0057D9]"
+              >
+                Save Targets
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -411,9 +427,15 @@ export default function Incentives() {
       </div>
 
       <div className="space-y-4">
-        {targets.map((target) => (
-          <StaffTargetCard key={target.staffId} target={target} onUpdate={updateTarget} />
-        ))}
+        {visibleTargets.length === 0 ? (
+          <div className="rounded-2xl border border-[#D1DCF0] bg-white/95 p-8 text-center">
+            <p className="text-slate-500 text-sm">No incentive data assigned to your account yet.</p>
+          </div>
+        ) : (
+          visibleTargets.map((target) => (
+            <StaffTargetCard key={target.staffId} target={target} onUpdate={updateTarget} />
+          ))
+        )}
       </div>
     </div>
   )

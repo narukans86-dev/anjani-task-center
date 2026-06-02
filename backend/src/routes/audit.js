@@ -2,11 +2,12 @@
 
 const express = require('express')
 const db = require('../database')
+const { requireAdmin } = require('../middleware/auth')
 
 const router = express.Router()
 
-// GET /api/audit?page=1&limit=50
-router.get('/', (req, res) => {
+// GET /api/audit?page=1&limit=50 — admin only
+router.get('/', requireAdmin, (req, res) => {
   const page  = Math.max(1, parseInt(req.query.page  ?? 1, 10))
   const limit = Math.min(200, Math.max(1, parseInt(req.query.limit ?? 50, 10)))
   const offset = (page - 1) * limit
@@ -35,7 +36,7 @@ router.post('/', (req, res) => {
 })
 
 // DELETE /api/audit/clear — admin only
-router.delete('/clear', (_req, res) => {
+router.delete('/clear', requireAdmin, (_req, res) => {
   db.prepare('DELETE FROM audit_logs').run()
   res.json({ message: 'All audit logs cleared.' })
 })

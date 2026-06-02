@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { getAuditLogs, createAuditLog } from '../services/api'
+import { getAuditLogs, createAuditLog, clearAuditLogs } from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
@@ -64,7 +64,7 @@ export default function AuditLog() {
   async function handleClear() {
     setClearing(true)
     try {
-      await fetch('/api/audit/clear', { method: 'DELETE' })
+      await clearAuditLogs()
       setConfirmClear(false)
       toast('Audit logs cleared', 'success')
       setPage(1)

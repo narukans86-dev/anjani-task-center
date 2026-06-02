@@ -2,6 +2,7 @@
 
 const express = require('express')
 const db = require('../database')
+const { requireAdmin } = require('../middleware/auth')
 
 const router = express.Router()
 
@@ -90,8 +91,8 @@ router.delete('/complete/:id', (req, res) => {
 
 // ── Admin Management Routes ────────────────────────────────────────────────
 
-// POST /api/checklists — create a new checklist definition
-router.post('/', (req, res) => {
+// POST /api/checklists — create a new checklist definition (admin only)
+router.post('/', requireAdmin, (req, res) => {
   const { title, description, type, order_index, is_required, active } = req.body
   if (!title) return res.status(400).json({ error: 'Title is required.' })
 
@@ -111,8 +112,8 @@ router.post('/', (req, res) => {
   res.status(201).json(created)
 })
 
-// PUT /api/checklists/:id — update a checklist definition
-router.put('/:id', (req, res) => {
+// PUT /api/checklists/:id — update a checklist definition (admin only)
+router.put('/:id', requireAdmin, (req, res) => {
   const { id } = req.params
   const existing = db.prepare('SELECT * FROM checklists WHERE id = ?').get(id)
   if (!existing) return res.status(404).json({ error: 'Checklist definition not found.' })
@@ -136,8 +137,8 @@ router.put('/:id', (req, res) => {
   res.json(db.prepare('SELECT * FROM checklists WHERE id = ?').get(id))
 })
 
-// DELETE /api/checklists/:id — deactivate or delete a checklist definition
-router.delete('/:id', (req, res) => {
+// DELETE /api/checklists/:id — deactivate a checklist definition (admin only)
+router.delete('/:id', requireAdmin, (req, res) => {
   const { id } = req.params
   const existing = db.prepare('SELECT * FROM checklists WHERE id = ?').get(id)
   if (!existing) return res.status(404).json({ error: 'Checklist definition not found.' })

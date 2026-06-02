@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { getTodayChecklists, completeChecklistItem, uncompleteChecklistItem, getStaff, createAuditLog } from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { getEffectiveRole } from '../services/permissions'
 import { useToast } from '../hooks/useToast'
 import Toast from '../components/Toast'
 
@@ -124,7 +125,9 @@ export default function Checklist() {
   const [tab, setTab] = useState('opening')
   const [completing, setCompleting] = useState(null)
 
-  const isStaff = user?.role === 'staff'
+  // Only admin and decision_manager can unmark completed items
+  const effectiveRole = getEffectiveRole(user)
+  const isStaff = !['admin', 'decision_manager'].includes(effectiveRole)
 
   const staffMap = useMemo(() => {
     const m = {}
@@ -132,7 +135,9 @@ export default function Checklist() {
     return m
   }, [staffList])
 
+  // Prefer user.staffId (set from DB on login); fall back to name match
   const myStaffId = useMemo(() => {
+    if (user?.staffId != null) return user.staffId
     const match = staffList.find((s) => s.name === user?.name)
     return match ? match.id : null
   }, [staffList, user])

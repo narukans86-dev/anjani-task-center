@@ -2,6 +2,7 @@
 
 const express = require('express')
 const db = require('../database')
+const { requireDecisionManagerOrAbove } = require('../middleware/auth')
 
 const router = express.Router()
 
@@ -18,8 +19,8 @@ router.get('/:id', (req, res) => {
   res.json(row)
 })
 
-// POST /api/staff — create staff
-router.post('/', (req, res) => {
+// POST /api/staff — create staff (manager or admin)
+router.post('/', requireDecisionManagerOrAbove, (req, res) => {
   const {
     name,
     role,
@@ -60,8 +61,8 @@ router.post('/', (req, res) => {
   res.status(201).json(created)
 })
 
-// PUT /api/staff/:id — update staff
-router.put('/:id', (req, res) => {
+// PUT /api/staff/:id — update staff (manager or admin)
+router.put('/:id', requireDecisionManagerOrAbove, (req, res) => {
   const { id } = req.params
   const existing = db.prepare('SELECT * FROM staff WHERE id = ?').get(id)
   if (!existing) return res.status(404).json({ error: 'Staff member not found.' })
@@ -105,8 +106,8 @@ router.put('/:id', (req, res) => {
   res.json(db.prepare('SELECT * FROM staff WHERE id = ?').get(id))
 })
 
-// DELETE /api/staff/:id — soft delete (set status='inactive')
-router.delete('/:id', (req, res) => {
+// DELETE /api/staff/:id — soft delete (manager or admin)
+router.delete('/:id', requireDecisionManagerOrAbove, (req, res) => {
   const { id } = req.params
   const existing = db.prepare('SELECT * FROM staff WHERE id = ?').get(id)
   if (!existing) return res.status(404).json({ error: 'Staff member not found.' })

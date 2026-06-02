@@ -70,7 +70,7 @@ export default function QuoteEditor() {
   const { user } = useAuth()
   const isAdmin = hasRole(user, ['admin'])
   const canEdit = isAdmin
-  const canView = hasRole(user, ['admin', 'manager'])
+  const canView = hasRole(user, ['admin'])
 
   const [templates, setTemplates] = useState([])
   const [selectedId, setSelectedId] = useState(null)
