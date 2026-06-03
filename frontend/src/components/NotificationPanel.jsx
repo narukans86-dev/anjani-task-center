@@ -237,22 +237,13 @@ function PushStatusPanel() {
                 {loading ? 'Enabling…' : 'Enable Mobile Notifications'}
               </button>
             ) : (
-              <>
-                <button
-                  onClick={handleTestPush}
-                  disabled={loading}
-                  className="text-[11px] px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-                >
-                  Send Test Push
-                </button>
-                <button
-                  onClick={handleDisable}
-                  disabled={loading}
-                  className="text-[11px] px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-red-300 hover:text-red-600 disabled:opacity-50 transition-colors"
-                >
-                  Disable
-                </button>
-              </>
+              <button
+                onClick={handleTestPush}
+                disabled={loading}
+                className="text-[11px] px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+              >
+                Send Test Push
+              </button>
             )}
             <button
               onClick={handleTestInApp}
