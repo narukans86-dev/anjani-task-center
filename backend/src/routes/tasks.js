@@ -6,12 +6,23 @@ const { sendNotification } = require('../utils/notificationService')
 
 const router = express.Router()
 
-// Look up staff_id + user_id from a staff name string
+// Look up staff_id + user_id from a staff name string or numeric ID
 function findUserByStaffName(name) {
   if (!name) return { staffId: null, userId: null }
-  const staff = db.prepare(
+  const nameStr = String(name).trim()
+  if (!nameStr) return { staffId: null, userId: null }
+
+  // Try by name first; fall back to numeric ID if the value is a number
+  let staff = db.prepare(
     'SELECT id FROM staff WHERE LOWER(name) = LOWER(?) AND status = ?'
-  ).get(name.trim(), 'active')
+  ).get(nameStr, 'active')
+
+  if (!staff && /^\d+$/.test(nameStr)) {
+    staff = db.prepare(
+      'SELECT id FROM staff WHERE id = ? AND status = ?'
+    ).get(parseInt(nameStr, 10), 'active')
+  }
+
   if (!staff) return { staffId: null, userId: null }
   const user = db.prepare(
     'SELECT id FROM users WHERE staff_id = ? AND status = ?'
