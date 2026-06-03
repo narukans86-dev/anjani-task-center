@@ -94,6 +94,14 @@ export const createDailyRoutineTemplate = (data) => req('/daily-routine/template
 export const updateDailyRoutineTemplate = (id, data) => req(`/daily-routine/templates/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 export const deleteDailyRoutineTemplate = (id) => req(`/daily-routine/templates/${id}`, { method: 'DELETE' })
 
+// ── Notification extras ────────────────────────────────────────────────────
+export const completeNotification  = (id)  => req(`/notifications/${id}/complete`, { method: 'PATCH' })
+export const sendTestNotification  = ()    => req('/notifications/test-me', { method: 'POST' })
+
+// ── Notification settings ──────────────────────────────────────────────────
+export const getNotificationSettings  = ()     => req('/notification-settings')
+export const saveNotificationSettings = (data) => req('/notification-settings', { method: 'PUT', body: JSON.stringify(data) })
+
 // ── My Profile ────────────────────────────────────────────────────────────
 export const getMe            = ()     => req('/auth/me')
 export const updateMyProfile  = (data) => req('/auth/me/profile', { method: 'PUT', body: JSON.stringify(data) })

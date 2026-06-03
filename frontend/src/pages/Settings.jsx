@@ -12,6 +12,7 @@ import {
   getDailyRoutineTemplates, createDailyRoutineTemplate, updateDailyRoutineTemplate, deleteDailyRoutineTemplate,
   createAuditLog, getStaff,
   getUsers, createUser, updateUser, resetUserPassword, setUserStatus,
+  getNotificationSettings, saveNotificationSettings,
 } from '../services/api'
 import {
   requestBrowserNotificationPermission,
@@ -1172,8 +1173,35 @@ function AboutTab() {
 // ── Tab: Notifications ─────────────────────────────────────────────────────────
 
 function NotificationsTab({ settings, onChange, onSave, saving }) {
+  const { user } = useAuth()
   const { showToast } = useToast()
   const [browserPermissionStatus, setBrowserPermissionStatus] = useState(getBrowserNotificationPermission())
+  const [staffList, setStaffList] = useState([])
+  const [pushSettings, setPushSettings] = useState(null)
+  const [pushSaving, setPushSaving] = useState(false)
+
+  useEffect(() => {
+    getStaff().then((r) => setStaffList(Array.isArray(r) ? r : [])).catch(() => {})
+    getNotificationSettings().then(setPushSettings).catch(() => {})
+  }, [])
+
+  async function savePushSettings() {
+    if (!pushSettings) return
+    setPushSaving(true)
+    try {
+      const updated = await saveNotificationSettings(pushSettings)
+      setPushSettings(updated)
+      showToast('Push notification settings saved.', 'success')
+    } catch (e) {
+      showToast('Failed to save: ' + e.message, 'error')
+    } finally {
+      setPushSaving(false)
+    }
+  }
+
+  function setPushField(field, value) {
+    setPushSettings((prev) => prev ? { ...prev, [field]: value } : prev)
+  }
 
   useEffect(() => {
     // Note: 'permissionchange' event is not standard across all browsers,
@@ -1295,6 +1323,85 @@ function NotificationsTab({ settings, onChange, onSave, saving }) {
             <li>Overdue alert — past refill date</li>
           </ul>
           <p className="mt-2 text-amber-600 italic">WhatsApp / SMS / Email delivery coming soon.</p>
+        </div>
+      </Section>
+
+      {/* ── Mobile Push Settings (admin only) ── */}
+      {user?.role === 'admin' && pushSettings && (
+        <Section title="Mobile Push Notification Settings (Admin)">
+          <Field label="Enable Web Push" hint="Master switch — disable to stop all push notifications.">
+            <Toggle
+              label="Push notifications enabled"
+              checked={!!pushSettings.push_enabled}
+              onChange={(e) => setPushField('push_enabled', e.target.checked ? 1 : 0)}
+            />
+          </Field>
+          <Field label="Default Sales Staff" hint="Receives pickup refill alerts (default: Rakesh Kumar Meena).">
+            <Select
+              value={pushSettings.default_sales_staff_id || ''}
+              onChange={(e) => setPushField('default_sales_staff_id', e.target.value || null)}
+            >
+              <option value="">Auto-detect (Rakesh)</option>
+              {staffList.filter((s) => s.status === 'active').map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Default Purchase Staff" hint="Receives reorder alerts (default: Vakil Gurjar).">
+            <Select
+              value={pushSettings.default_purchase_staff_id || ''}
+              onChange={(e) => setPushField('default_purchase_staff_id', e.target.value || null)}
+            >
+              <option value="">Auto-detect (Vakil)</option>
+              {staffList.filter((s) => s.status === 'active').map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </Select>
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Morning Reminder (IST)">
+              <Input
+                type="time"
+                value={pushSettings.refill_morning_reminder_time || '09:30'}
+                onChange={(e) => setPushField('refill_morning_reminder_time', e.target.value)}
+              />
+            </Field>
+            <Field label="Evening Reminder (IST)">
+              <Input
+                type="time"
+                value={pushSettings.evening_reminder_time || '17:00'}
+                onChange={(e) => setPushField('evening_reminder_time', e.target.value)}
+              />
+            </Field>
+          </div>
+          <Field label="End-of-Day Reminder (IST)">
+            <Input
+              type="time"
+              value={pushSettings.end_of_day_time || '20:30'}
+              onChange={(e) => setPushField('end_of_day_time', e.target.value)}
+            />
+          </Field>
+          <Field label="Escalation Alerts" hint="Notify admin when high-priority items remain pending past due time.">
+            <Toggle
+              label="Enable escalation notifications"
+              checked={!!pushSettings.escalation_enabled}
+              onChange={(e) => setPushField('escalation_enabled', e.target.checked ? 1 : 0)}
+            />
+          </Field>
+          <Btn onClick={savePushSettings} disabled={pushSaving} variant="secondary">
+            {pushSaving ? 'Saving…' : 'Save Push Settings'}
+          </Btn>
+        </Section>
+      )}
+
+      <Section title="Mobile App Installation">
+        <div className="space-y-3 text-sm text-slate-600">
+          <p className="font-medium text-[#111827]">Install on Mobile for Push Notifications</p>
+          <div className="bg-slate-50 rounded-lg p-3 space-y-2 text-xs">
+            <p><strong className="text-[#0A3D91]">Android (Chrome):</strong> Open the app in Chrome → Menu (⋮) → "Add to Home screen" or "Install app" → Open from home screen → Enable Notifications</p>
+            <p><strong className="text-[#0A3D91]">iPhone (Safari):</strong> Open in Safari → Share button → "Add to Home Screen" → Open the installed app → Enable Notifications in notification panel</p>
+          </div>
+          <p className="text-xs text-slate-400">After installation, log in and tap "Enable Mobile Notifications" in the notification panel (bell icon).</p>
         </div>
       </Section>
 

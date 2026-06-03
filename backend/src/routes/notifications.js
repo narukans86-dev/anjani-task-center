@@ -2,6 +2,7 @@
 
 const express = require('express')
 const db = require('../database')
+const { sendNotification } = require('../utils/notificationService')
 
 const router = express.Router()
 
@@ -54,6 +55,18 @@ router.patch('/read-all', (req, res) => {
   res.json({ message: 'All notifications marked as read.' })
 })
 
+// PATCH /api/notifications/:id/complete
+router.patch('/:id/complete', (req, res) => {
+  const { id } = req.params
+  const existing = db.prepare('SELECT * FROM notifications WHERE id=?').get(id)
+  if (!existing) return res.status(404).json({ error: 'Notification not found.' })
+
+  db.prepare(
+    "UPDATE notifications SET action_completed=1, clearable=1, is_read=1 WHERE id=?"
+  ).run(id)
+  res.json(db.prepare('SELECT * FROM notifications WHERE id=?').get(id))
+})
+
 // DELETE /api/notifications/:id
 router.delete('/:id', (req, res) => {
   const { id } = req.params
@@ -70,6 +83,29 @@ router.delete('/:id', (req, res) => {
 
   db.prepare('DELETE FROM notifications WHERE id=?').run(id)
   res.json({ message: 'Notification deleted.' })
+})
+
+// POST /api/notifications/test-me — send a test to the current user
+router.post('/test-me', async (req, res) => {
+  const user = req.currentUser
+  if (!user) return res.status(401).json({ error: 'Unauthorized' })
+
+  try {
+    const result = await sendNotification({
+      userId: user.id,
+      staffId: user.staff_id,
+      title: 'Test Notification',
+      message: `Hello ${user.display_name || user.username}! In-app notifications are working.`,
+      type: 'system',
+      priority: 'normal',
+      requiresAction: false,
+      clearable: true,
+      actionUrl: '/',
+    })
+    res.json({ success: true, notifId: result.notifId })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
 })
 
 // POST /api/notifications/generate

@@ -289,6 +289,69 @@ if (!notifCols.includes('action_completed')) {
 if (!notifCols.includes('target_staff_id')) {
   db.prepare('ALTER TABLE notifications ADD COLUMN target_staff_id INTEGER').run()
 }
+if (!notifCols.includes('clearable')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN clearable INTEGER DEFAULT 1').run()
+}
+if (!notifCols.includes('action_url')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN action_url TEXT').run()
+}
+if (!notifCols.includes('user_id')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN user_id INTEGER').run()
+}
+if (!notifCols.includes('related_token')) {
+  db.prepare('ALTER TABLE notifications ADD COLUMN related_token TEXT').run()
+}
+
+// ── Push subscriptions table ───────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id         INTEGER NOT NULL,
+    staff_id        INTEGER,
+    endpoint        TEXT NOT NULL UNIQUE,
+    p256dh          TEXT NOT NULL,
+    auth            TEXT NOT NULL,
+    user_agent      TEXT,
+    device_label    TEXT,
+    is_active       INTEGER DEFAULT 1,
+    last_success_at TEXT,
+    last_failure_at TEXT,
+    created_at      TEXT DEFAULT (datetime('now')),
+    updated_at      TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+`)
+
+// ── Notification reminder deduplication log ────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notification_reminder_log (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    reminder_key    TEXT NOT NULL UNIQUE,
+    related_module  TEXT,
+    related_entity_id INTEGER,
+    staff_id        INTEGER,
+    user_id         INTEGER,
+    sent_at         TEXT DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_reminder_log_key ON notification_reminder_log(reminder_key);
+`)
+
+// ── Notification settings table ────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notification_settings (
+    id                          INTEGER PRIMARY KEY DEFAULT 1,
+    push_enabled                INTEGER DEFAULT 1,
+    refill_morning_reminder_time TEXT DEFAULT '09:30',
+    task_morning_reminder_time  TEXT DEFAULT '09:30',
+    evening_reminder_time       TEXT DEFAULT '17:00',
+    end_of_day_time             TEXT DEFAULT '20:30',
+    escalation_enabled          INTEGER DEFAULT 1,
+    default_sales_staff_id      INTEGER,
+    default_purchase_staff_id   INTEGER,
+    updated_at                  TEXT DEFAULT (datetime('now'))
+  );
+  INSERT OR IGNORE INTO notification_settings (id) VALUES (1);
+`)
 
 // users table — add new profile columns if missing
 const userColNames = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name)

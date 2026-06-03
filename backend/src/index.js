@@ -1,5 +1,8 @@
 'use strict'
 
+// Load .env from repo root (two levels up from backend/src/)
+require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') })
+
 const express = require('express')
 const cors = require('cors')
 
@@ -19,6 +22,7 @@ const reportsRouter          = require('./routes/reports')
 const refillSchedulesRouter  = require('./routes/refillSchedules')
 const taskTemplatesRouter    = require('./routes/taskTemplates')
 const dailyRoutinesRouter    = require('./routes/dailyRoutines')
+const pushRouter             = require('./routes/push')
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -70,6 +74,43 @@ app.use('/api/reports',          requireAuth, reportsRouter)
 app.use('/api/refill-schedules', requireAuth, refillSchedulesRouter)
 app.use('/api/task-templates',   requireAuth, taskTemplatesRouter)
 app.use('/api/daily-routine',    requireAuth, dailyRoutinesRouter)
+app.use('/api/push',             requireAuth, pushRouter)
+
+// ── Notification settings (admin only) ────────────────────────────────────
+app.get('/api/notification-settings', requireAuth, (_req, res) => {
+  const settings = db.prepare('SELECT * FROM notification_settings WHERE id=1').get()
+  res.json(settings || {})
+})
+app.put('/api/notification-settings', requireAuth, requireAdmin, (req, res) => {
+  const {
+    push_enabled, refill_morning_reminder_time, task_morning_reminder_time,
+    evening_reminder_time, end_of_day_time, escalation_enabled,
+    default_sales_staff_id, default_purchase_staff_id,
+  } = req.body
+  db.prepare(`
+    UPDATE notification_settings SET
+      push_enabled=?,
+      refill_morning_reminder_time=?,
+      task_morning_reminder_time=?,
+      evening_reminder_time=?,
+      end_of_day_time=?,
+      escalation_enabled=?,
+      default_sales_staff_id=?,
+      default_purchase_staff_id=?,
+      updated_at=datetime('now')
+    WHERE id=1
+  `).run(
+    push_enabled ?? 1,
+    refill_morning_reminder_time ?? '09:30',
+    task_morning_reminder_time ?? '09:30',
+    evening_reminder_time ?? '17:00',
+    end_of_day_time ?? '20:30',
+    escalation_enabled ?? 1,
+    default_sales_staff_id || null,
+    default_purchase_staff_id || null
+  )
+  res.json(db.prepare('SELECT * FROM notification_settings WHERE id=1').get())
+})
 
 // ── 404 handler ────────────────────────────────────────────────────────────
 
@@ -86,6 +127,8 @@ app.use((err, _req, res, _next) => {
 
 // ── Start ──────────────────────────────────────────────────────────────────
 
+const { startScheduler } = require('./scheduler')
+
 app.listen(PORT, () => {
   console.log('\n┌─────────────────────────────────────────────────────┐')
   console.log('│   Anjani Staff Task Command Center — Backend         │')
@@ -99,5 +142,7 @@ app.listen(PORT, () => {
   console.log(`│   Audit      : http://localhost:${PORT}/api/audit        │`)
   console.log(`│   Reports    : http://localhost:${PORT}/api/reports/daily│`)
   console.log('│   Mode       : Development (--watch enabled)         │')
+  console.log('│   Push      : /api/push/vapid-public-key             │')
   console.log('└─────────────────────────────────────────────────────┘\n')
+  startScheduler()
 })
