@@ -2,8 +2,22 @@
 
 const express = require('express')
 const db = require('../database')
+const { sendNotification } = require('../utils/notificationService')
 
 const router = express.Router()
+
+// Look up staff_id + user_id from a staff name string
+function findUserByStaffName(name) {
+  if (!name) return { staffId: null, userId: null }
+  const staff = db.prepare(
+    'SELECT id FROM staff WHERE LOWER(name) = LOWER(?) AND status = ?'
+  ).get(name.trim(), 'active')
+  if (!staff) return { staffId: null, userId: null }
+  const user = db.prepare(
+    'SELECT id FROM users WHERE staff_id = ? AND status = ?'
+  ).get(staff.id, 'active')
+  return { staffId: staff.id, userId: user ? user.id : null }
+}
 
 // GET /api/tasks — all tasks with optional filters
 // Query: ?date=YYYY-MM-DD &status= &priority= &staff= &category= &search=
@@ -105,7 +119,26 @@ router.post('/', (req, res) => {
     due_time ?? null
   )
 
-  res.status(201).json(db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid))
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid)
+
+  // Notify assigned staff immediately
+  if (assigned_to) {
+    const { staffId, userId } = findUserByStaffName(assigned_to)
+    const assigner = req.currentUser?.display_name || req.currentUser?.username || 'Someone'
+    const duePart = due_date ? ` · Due: ${due_date}` : ''
+    sendNotification({
+      userId, staffId,
+      title: `New task assigned to you`,
+      message: `"${title.trim()}" assigned by ${assigner}${duePart}.`,
+      type: 'task',
+      priority: ['critical','urgent'].includes(priority) ? 'urgent' : (priority || 'normal'),
+      requiresAction: false,
+      clearable: true,
+      actionUrl: '/tasks',
+    }).catch(() => {})
+  }
+
+  res.status(201).json(task)
 })
 
 // PUT /api/tasks/:id — update task
@@ -143,7 +176,28 @@ router.put('/:id', (req, res) => {
     id
   )
 
-  res.json(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id))
+  const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)
+
+  // Notify if assignment changed (new assignee or reassigned to someone else)
+  const prevAssignee = existing.assigned_to
+  const newAssignee  = assigned_to !== undefined ? assigned_to : existing.assigned_to
+  if (newAssignee && newAssignee !== prevAssignee) {
+    const { staffId, userId } = findUserByStaffName(newAssignee)
+    const assigner = req.currentUser?.display_name || req.currentUser?.username || 'Someone'
+    const duePart  = updated.due_date ? ` · Due: ${updated.due_date}` : ''
+    sendNotification({
+      userId, staffId,
+      title: `Task assigned to you`,
+      message: `"${updated.title}" assigned by ${assigner}${duePart}.`,
+      type: 'task',
+      priority: ['critical','urgent'].includes(updated.priority) ? 'urgent' : (updated.priority || 'normal'),
+      requiresAction: false,
+      clearable: true,
+      actionUrl: '/tasks',
+    }).catch(() => {})
+  }
+
+  res.json(updated)
 })
 
 // DELETE /api/tasks/:id — delete task
