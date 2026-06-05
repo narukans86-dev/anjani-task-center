@@ -75,6 +75,25 @@ function StatusIcon({ status }) {
 const inputCls =
   'w-full bg-white border border-[#D1DCF0] rounded-lg px-3 py-2 text-[#111827] text-sm placeholder-slate-400 focus:outline-none focus:border-[#0A3D91] focus:ring-2 focus:ring-[#0A3D91]/10'
 
+function getUserStaffId(user, staffList = []) {
+  const direct = user?.staff_id ?? user?.staffId
+  if (direct !== undefined && direct !== null && direct !== '') return direct
+
+  const userName = user?.staffName || user?.staff_name || user?.name || user?.display_name
+  if (!userName) return null
+  const match = staffList.find((s) =>
+    s.name === userName ||
+    (user?.email && s.email === user.email) ||
+    (user?.mobile_number && s.mobile_number === user.mobile_number)
+  )
+  return match ? match.id : null
+}
+
+function isTaskAssignedToStaff(task, staffId) {
+  if (task?.assigned_to === undefined || task?.assigned_to === null || staffId === undefined || staffId === null) return false
+  return Number(task.assigned_to) === Number(staffId) || String(task.assigned_to) === String(staffId)
+}
+
 // ── Template Picker ──────────────────────────────────────────────────────────
 
 function TemplatePicker({ onSelect, selectedId, templates = [] }) {
@@ -533,21 +552,20 @@ export default function Tasks() {
   }, [staffList])
 
   const myStaffId = useMemo(() => {
-    if (user?.role !== 'staff') return null
-    const match = staffList.find((s) => s.name === user.name)
-    return match ? match.id : null
+    if (!user || user.role === 'admin' || !user.staff_id && !user.staffId) return null
+    return getUserStaffId(user, staffList)
   }, [user, staffList])
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
-      if (user?.role === 'staff') {
+      if (user?.role !== 'admin' && (user?.staff_id || user?.staffId)) {
         if (myStaffId === null) return false
-        if (String(t.assigned_to) !== String(myStaffId)) return false
+        if (!isTaskAssignedToStaff(t, myStaffId)) return false
       }
       if (filters.status && t.status !== filters.status) return false
       if (filters.priority && t.priority !== filters.priority) return false
       if (filters.category && t.category !== filters.category) return false
-      if (filters.assigned_to && String(t.assigned_to) !== String(filters.assigned_to)) return false
+      if (filters.assigned_to && !isTaskAssignedToStaff(t, filters.assigned_to)) return false
       if (filters.date && t.due_date !== filters.date) return false
       if (filters.search) {
         const q = filters.search.toLowerCase()
@@ -758,7 +776,7 @@ export default function Tasks() {
                   </tr>
                 ) : (
                   filtered.map((t) => {
-                    const assignee = staffMap[t.assigned_to]
+                    const assignee = staffMap[Number(t.assigned_to)] || staffMap[t.assigned_to]
                     const pr = PRIORITY_CONFIG[t.priority] || PRIORITY_CONFIG.low
                     const st = STATUS_CONFIG[t.status] || STATUS_CONFIG.pending
                     return (
@@ -855,7 +873,7 @@ export default function Tasks() {
               </div>
             ) : (
               filtered.map((t) => {
-                const assignee = staffMap[t.assigned_to]
+                const assignee = staffMap[Number(t.assigned_to)] || staffMap[t.assigned_to]
                 const pr = PRIORITY_CONFIG[t.priority] || PRIORITY_CONFIG.low
                 const st = STATUS_CONFIG[t.status] || STATUS_CONFIG.pending
                 return (

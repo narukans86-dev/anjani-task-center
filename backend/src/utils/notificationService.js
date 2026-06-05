@@ -70,6 +70,7 @@ async function sendNotification({
   clearable    = true,
   relatedModule   = null,
   relatedEntityId = null,
+  relatedTaskId   = null,
   relatedToken    = null,
   actionUrl    = null,
   dedupKey     = null,
@@ -84,8 +85,8 @@ async function sendNotification({
       INSERT ${dedupKey ? 'OR IGNORE' : ''} INTO notifications
         (user_id, target_staff_id, title, message, type, priority,
          requires_action, clearable, action_url, related_token,
-         related_schedule_id, dedup_key)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         related_schedule_id, related_task_id, dedup_key)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
     const info = stmt.run(
       userId, staffId, title, message, type, priority,
@@ -94,6 +95,7 @@ async function sendNotification({
       actionUrl,
       relatedToken,
       relatedModule === 'patient_refill' ? relatedEntityId : null,
+      relatedTaskId,
       dedupKey
     )
     if (info.lastInsertRowid) notifId = info.lastInsertRowid

@@ -30,6 +30,18 @@ function findUserByStaffName(name) {
   return { staffId: staff.id, userId: user ? user.id : null }
 }
 
+function normalizeAssignedTo(value) {
+  if (value === undefined || value === null || value === '') return null
+  return String(value)
+}
+
+function assignmentInput(body) {
+  if (body.assignedToStaffId !== undefined) return body.assignedToStaffId
+  if (body.assigned_to_staff_id !== undefined) return body.assigned_to_staff_id
+  if (body.assigned_to !== undefined) return body.assigned_to
+  return undefined
+}
+
 // GET /api/tasks — all tasks with optional filters
 // Query: ?date=YYYY-MM-DD &status= &priority= &staff= &category= &search=
 router.get('/', (req, res) => {
@@ -113,8 +125,14 @@ router.get('/stats', (_req, res) => {
 
 // POST /api/tasks — create task
 router.post('/', (req, res) => {
-  const { title, description, category, priority, status, assigned_to, due_date, due_time } = req.body
+  const { title, description, category, priority, status, due_date, due_time } = req.body
+  const assigned_to = assignmentInput(req.body)
   if (!title) return res.status(400).json({ error: 'title is required.' })
+
+  const assignment = assigned_to ? findUserByStaffName(assigned_to) : { staffId: null, userId: null }
+  if (assigned_to && !assignment.staffId) {
+    return res.status(400).json({ error: 'Assigned staff was not found.' })
+  }
 
   const info = db.prepare(`
     INSERT INTO tasks (title, description, category, priority, status, assigned_to, due_date, due_time)
@@ -125,7 +143,7 @@ router.post('/', (req, res) => {
     category?.trim() ?? null,
     priority ?? 'medium',
     status ?? 'pending',
-    assigned_to ?? null,
+    normalizeAssignedTo(assignment.staffId ?? assigned_to),
     due_date ?? null,
     due_time ?? null
   )
@@ -133,18 +151,24 @@ router.post('/', (req, res) => {
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid)
 
   // Notify assigned staff immediately
-  if (assigned_to) {
-    const { staffId, userId } = findUserByStaffName(assigned_to)
+  if (assignment.staffId) {
     const assigner = req.currentUser?.display_name || req.currentUser?.username || 'Someone'
     const duePart = due_date ? ` · Due: ${due_date}` : ''
+    console.info('[TaskAssignment] task saved for notification', {
+      taskId: task.id,
+      assignedTo: task.assigned_to,
+      notificationStaffId: assignment.staffId,
+    })
     sendNotification({
-      userId, staffId,
+      userId: assignment.userId,
+      staffId: assignment.staffId,
       title: `New task assigned to you`,
       message: `"${title.trim()}" assigned by ${assigner}${duePart}.`,
       type: 'task',
       priority: ['critical','urgent'].includes(priority) ? 'urgent' : (priority || 'normal'),
       requiresAction: false,
       clearable: true,
+      relatedTaskId: task.id,
       actionUrl: '/tasks',
     }).catch(() => {})
   }
@@ -158,7 +182,15 @@ router.put('/:id', (req, res) => {
   const existing = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id)
   if (!existing) return res.status(404).json({ error: 'Task not found.' })
 
-  const { title, description, category, priority, status, assigned_to, due_date, due_time } = req.body
+  const { title, description, category, priority, status, due_date, due_time } = req.body
+  const assigned_to = assignmentInput(req.body)
+  const hasAssignment = assigned_to !== undefined
+  const assignment = assigned_to !== undefined && assigned_to !== null && assigned_to !== ''
+    ? findUserByStaffName(assigned_to)
+    : { staffId: null, userId: null }
+  if (hasAssignment && assigned_to !== null && assigned_to !== '' && !assignment.staffId) {
+    return res.status(400).json({ error: 'Assigned staff was not found.' })
+  }
 
   const newStatus = status !== undefined ? status : existing.status
   let completedAt = existing.completed_at
@@ -180,7 +212,7 @@ router.put('/:id', (req, res) => {
     category !== undefined ? category?.trim() ?? null : existing.category,
     priority !== undefined ? priority : existing.priority,
     newStatus,
-    assigned_to !== undefined ? assigned_to : existing.assigned_to,
+    hasAssignment ? normalizeAssignedTo(assignment.staffId ?? assigned_to) : existing.assigned_to,
     due_date !== undefined ? due_date : existing.due_date,
     due_time !== undefined ? due_time : existing.due_time,
     completedAt,
@@ -191,19 +223,20 @@ router.put('/:id', (req, res) => {
 
   // Notify if assignment changed (new assignee or reassigned to someone else)
   const prevAssignee = existing.assigned_to
-  const newAssignee  = assigned_to !== undefined ? assigned_to : existing.assigned_to
+  const newAssignee  = hasAssignment ? normalizeAssignedTo(assignment.staffId ?? assigned_to) : existing.assigned_to
   if (newAssignee && newAssignee !== prevAssignee) {
-    const { staffId, userId } = findUserByStaffName(newAssignee)
     const assigner = req.currentUser?.display_name || req.currentUser?.username || 'Someone'
     const duePart  = updated.due_date ? ` · Due: ${updated.due_date}` : ''
     sendNotification({
-      userId, staffId,
+      userId: assignment.userId,
+      staffId: assignment.staffId,
       title: `Task assigned to you`,
       message: `"${updated.title}" assigned by ${assigner}${duePart}.`,
       type: 'task',
       priority: ['critical','urgent'].includes(updated.priority) ? 'urgent' : (updated.priority || 'normal'),
       requiresAction: false,
       clearable: true,
+      relatedTaskId: updated.id,
       actionUrl: '/tasks',
     }).catch(() => {})
   }
